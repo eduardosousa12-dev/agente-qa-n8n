@@ -1,0 +1,828 @@
+{
+  "name": "Agente Testador de LLMs",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $node[\"Loop Over Items\"].json[\"Testes\"] }}",
+        "options": {
+          "systemMessage": "=<!-- Identidade Expert -->\n<papel_especialista>\nVocê é um **Agente Avaliador de Atendimento (Test Runner)** especializado em **testes conversacionais de ponta a ponta**, com domínio em **engenharia de prompts zero-shot**, simulação realista de usuários e **orquestração via ferramenta**.\n</papel_especialista>\n\n<!-- Contexto Situacional -->\n<contexto_situacao>\nSeu papel é testar um **Agente principal** de atendimento, **invocando a ferramenta \"Agente principal\"** a cada turno com uma **única frase** que simula a mensagem do cliente. \nVocê deve conduzir a conversa **do início ao fim**, chamando a ferramenta **quantas vezes forem necessárias** até considerar o problema resolvido.\n</contexto_situacao>\n\n<!-- Objetivo Principal -->\n<objetivo_principal>\nExecutar um **teste completo de atendimento**, cobrindo todas as etapas, mantendo **cronologia lógica**, variando a ordem quando plausível, e **registrando o histórico completo** de chamadas e respostas da ferramenta. \n⚠️ **Você não responde ao atendimento**; quem responde é **exclusivamente** a ferramenta **\"Agente principal\"**.\n</objetivo_principal>\n\n<!-- Diretrizes de Execução -->\n<diretrizes_execucao>\n- **Persona do Usuário:** Cliente brasileiro, informal, direto e educado.\n- **Turno operacional (crítico):** Em cada iteração, **gere APENAS a mensagem do cliente** (uma frase, sem aspas) e **imediatamente chame a ferramenta \"Agente principal\"** passando essa frase como `mensagem`.\n- **Sem saída intermediária:** Não escreva nada para fora da ferramenta durante o fluxo. **Somente invocações da ferramenta** até a conclusão.\n- **Checklist de Etapas (todas devem ser cobertas):**\n  1) **Início** (cumprimento/origem do contato)\n  2) **Entender o produto** (o que é/benefícios/para quem)\n  3) **Como comprar** (canais e passos)\n  4) **Preço** (valor/condições)\n  5) **Finalização** (confirmação de próximo passo)\n- **Ordem Flexível + Cronologia Lógica:** Você pode variar a ordem entre 1–4; **5 sempre por último**. Se a resposta da ferramenta for vaga, faça nova chamada pedindo clareza específica.\n- **Memória de Slots (interna, sem imprimir):**\n  - `inicio_origem`\n  - `descricao_produto`\n  - `como_comprar`\n  - `preco`\n  - `fechamento`\n- **Critério de Resolução:** Encerrar quando **todos os slots** estiverem preenchidos e houver **próximo passo acionável aceito** (ex.: link para pagamento recebido e aceito, ou agendamento confirmado).\n- **Comprimento e tom da mensagem do cliente:** 4–16 palavras, uma intenção por turno, sem listas, sem múltiplas perguntas.\n- **Cooperação:** Se a ferramenta pedir dados (nome/uso/cidade), responda em **uma frase curta** na próxima chamada, e então retome o checklist.\n- **Sigilo:** Nunca revele que é teste, nem use termos técnicos (prompt, slots, agente).\n</diretrizes_execucao>\n\n<!-- Definição da Ferramenta -->\n<ferramenta_agente_principal>\n- **nome:** \"Agente principal\"\n- **entrada esperada (exemplo de schema):**\n  {\n    \"mensagem\": \"string com a frase do cliente\"\n  }\n- **comportamento:** Retorna a resposta de atendimento para a mensagem enviada.\n</ferramenta_agente_principal>\n\n<!-- Estratégia de Orquestração -->\n<estrategia_zero_shot>\n1. Escolha aleatoriamente um estado inicial entre `INICIO|DESCOBERTA|COMO_COMPRAR|PRECO`.  \n2. **Gere a frase do cliente** adequada ao estado escolhido.  \n3. **Chame a ferramenta \"Agente principal\"** com `mensagem = <frase_gerada>`.  \n4. **Extraia internamente** da resposta os dados para preencher os `slots`.  \n5. Enquanto houver `slots` pendentes, **repita 2–4** variando a ordem e mantendo coerência.  \n6. Quando todos os `slots` estiverem completos, gere a **frase de FECHAMENTO** e faça a **última chamada** à ferramenta.  \n7. **Somente então** produza a **saída final** contendo o **histórico completo** das interações (ver Formato Final).\n</estrategia_zero_shot>\n\n<!-- Banco de Frases (variar) -->\n<banco_de_frases>\n- **INICIO:** \"oi, vim do anúncio e queria mais informações\", \"olá, vi no instagram, pode me orientar?\"\n- **DESCOBERTA:** \"pode explicar rápido o que esse produto resolve?\", \"pra quem é indicado e quais benefícios?\"\n- **COMO_COMPRAR:** \"como faço pra comprar, tem link direto?\", \"posso fechar pelo whatsapp, qual o passo?\"\n- **PRECO:** \"qual o preço hoje?\", \"tem valor à vista e no cartão?\"\n- **FECHAMENTO:** \"ok, me envia o link que finalizo agora\", \"fechado, pode abrir o pedido pra mim?\"\n</banco_de_frases>\n\n<!-- Formato de Saída (FINAL APENAS) -->\n<formato_resposta>\nQuando o teste terminar, **retorne somente um objeto JSON** com o **histórico completo** das interações com a ferramenta, no formato:\n{\n  \"teste_finalizado\": true,\n  \"criterio_resolucao\": \"todos os slots preenchidos e próximo passo confirmado\",\n  \"slots\": {\n    \"inicio_origem\": \"...\",\n    \"descricao_produto\": \"...\",\n    \"como_comprar\": \"...\",\n    \"preco\": \"...\",\n    \"fechamento\": \"...\"\n  },\n  \"historico\": [\n    {\n      \"turno\": 1,\n      \"mensagem_enviada\": \"frase do cliente\",\n      \"resposta_agente_principal\": \"texto retornado pela ferramenta\"\n    },\n    {\n      \"turno\": 2,\n      \"mensagem_enviada\": \"frase do cliente\",\n      \"resposta_agente_principal\": \"texto retornado pela ferramenta\"\n    }\n    // ... até o último turno\n  ]\n}\n**Importante:** Até chegar a esta saída final, **não imprima nada** além das **chamadas de ferramenta** internas.\n</formato_resposta>\n\n<!-- Restrições Operacionais -->\n<restricoes_operacao>\n- Proibido responder perguntas do atendimento: **somente a ferramenta** responde.\n- Proibido emitir texto ao usuário durante o fluxo: apenas chamadas à ferramenta.\n- Proibido finalizar sem registrar **todo o histórico** conforme o formato.\n- Sempre em **pt-BR**; uma frase por turno enviada à ferramenta.\n</restricoes_operacao>"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        944
+      ],
+      "id": "bc295435-28fe-4c21-a52e-a6e87117e0b9",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "x-ai/grok-4-fast",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        1168
+      ],
+      "id": "903c69cd-07f6-4d21-96aa-599d77872623",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "ImbrexAB5AdJFN0m",
+          "name": "Vortex app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -720,
+        944
+      ],
+      "id": "aa196851-ac66-4726-8c7f-93bf9c1e10c5",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -496,
+        656
+      ],
+      "id": "47089610-1625-4b01-83f4-c0a7d0101258",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b4df685f-62a1-4a9e-bf94-9771a7d7621e",
+              "name": "URL planilha",
+              "value": "={{ $item(\"0\").$node[\"On form submission\"].json[\"URL da planilha\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "2c86bcd2-6485-4c38-8899-bde7cf84989e",
+              "name": "sessionId",
+              "value": "={{ $item(\"0\").$node[\"On form submission\"].json[\"SessionId\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "ae6e70e6-3217-43fa-8b24-8fda80764d3a",
+              "name": "endpoint",
+              "value": "={{ $node[\"On form submission\"].json[\"Path do webhook\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1472,
+        624
+      ],
+      "id": "61bf0946-8c2d-4e68-a70c-24b8920e78aa",
+      "name": "normalizar"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 759046731,
+          "mode": "list",
+          "cachedResultName": "Testes Detalhados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kns3hYjhwWveqT-57k3hq_6sJR5zo71h_wQXrpxgM_c/edit#gid=759046731"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -944,
+        944
+      ],
+      "id": "78e9f9a1-f11f-48d1-8614-4be080a821ad",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4hhtGTqH5x7SM4Mm",
+          "name": "Google Agencia"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "agente_principal",
+        "description": "=Chamado sempre que foi testar o agente principal",
+        "jsCode": "const axios = require('axios');\n\n// Pega o valor dinâmico de um nó anterior\nconst endpoint = $('normalizar1').item.json.endpoint; // ou o campo que contém o valor\nconst sessionId =  $('normalizar1').item.json.sessionId;\n\nconst payload = {\n  chatInput: query,\n  sessionId: sessionId\n};\n\n// Monta a URL dinamicamente\nconst url = `https://webhook-agencia.lucasfelix.com/webhook/${endpoint}`;\n\nasync function triggerWebhook() {\n  try {\n    console.log(\"Disparando webhook com o conteúdo da query e normalização...\");\n    console.log(\"URL:\", url); // Log para debug\n    \n    const response = await axios.post(url, payload, {\n      headers: { 'Content-Type': 'application/json' }\n    });\n    \n    console.log(\"Webhook disparado com sucesso.\");\n    return JSON.stringify({\n      success: true,\n      message: \"Webhook disparado com sucesso.\",\n      data: response.data\n    });\n  } catch (error) {\n    console.error(\"Erro ao disparar o webhook:\", error.response ? error.response.data : error.message);\n    return JSON.stringify({\n      success: false,\n      error: error.response ? error.response.data : error.message\n    });\n  }\n}\n\nreturn triggerWebhook();"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -16,
+        1168
+      ],
+      "id": "cd071b38-5e9b-4bef-95c9-1dcd578e999c",
+      "name": "agente_principal",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -144,
+        1168
+      ],
+      "id": "f605ddfd-d0be-498e-b722-686c9533e495",
+      "name": "Postgres Chat Memory1",
+      "credentials": {
+        "postgres": {
+          "id": "Co6Z3Y1rZeLnN9lt",
+          "name": "Directus BD"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b4df685f-62a1-4a9e-bf94-9771a7d7621e",
+              "name": "URL planilha",
+              "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL planilha\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "2c86bcd2-6485-4c38-8899-bde7cf84989e",
+              "name": "sessionId",
+              "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"sessionId\"] }} - {{ $now }}",
+              "type": "string"
+            },
+            {
+              "id": "ae6e70e6-3217-43fa-8b24-8fda80764d3a",
+              "name": "endpoint",
+              "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"endpoint\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -496,
+        944
+      ],
+      "id": "cc9fc99a-5b9a-4eee-8be7-041d1be4d335",
+      "name": "normalizar1"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "core_chat_histories",
+          "mode": "list",
+          "cachedResultName": "core_chat_histories"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "session_id",
+              "value": "={{ $node[\"normalizar1\"].json[\"sessionId\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        256,
+        944
+      ],
+      "id": "7d617b20-ab2e-4c56-9fbf-3e081068b87a",
+      "name": "Puxa histórico",
+      "credentials": {
+        "postgres": {
+          "id": "47BKAcZOGPPKXG9A",
+          "name": "chatwootBD"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 997172835,
+          "mode": "list",
+          "cachedResultName": "Análises",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kns3hYjhwWveqT-57k3hq_6sJR5zo71h_wQXrpxgM_c/edit#gid=997172835"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Resultado da IA": "={{ $item(\"0\").$node[\"AI Agent\"].json[\"output\"] }}",
+            "ID do teste": "={{ $item(\"0\").$node[\"normalizar1\"].json[\"sessionId\"] }}",
+            "Memory puxado": "={{ $item(\"0\").$node[\"Formata a memória em string\"].json[\"conversation_string\"] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID do teste",
+              "displayName": "ID do teste",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Resultado da IA",
+              "displayName": "Resultado da IA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Memory puxado",
+              "displayName": "Memory puxado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        992,
+        1072
+      ],
+      "id": "1844ab18-8b7a-4036-875b-b5d49c3f1b6b",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        768,
+        944
+      ],
+      "id": "ce3728b3-0b09-4c78-ae5c-303e3e7770e5",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega os dados de entrada\nconst inputData = $input.all();\n\n// Inicializa a string final\nlet conversationString = \"\";\n\n// Itera por cada item de entrada\nfor (const item of inputData) {\n  const data = item.json;\n  \n  // Se data é um array, processa cada mensagem\n  if (Array.isArray(data)) {\n    for (const message of data) {\n      conversationString += `ID: ${message.id}\\n`;\n      conversationString += `Session ID: ${message.session_id}\\n`;\n      conversationString += `Type: ${message.message.type}\\n`;\n      conversationString += `Content: ${message.message.content}\\n`;\n      \n      // Adiciona tool_calls se existir\n      if (message.message.tool_calls && message.message.tool_calls.length > 0) {\n        conversationString += `Tool Calls: ${JSON.stringify(message.message.tool_calls)}\\n`;\n      }\n      \n      // Adiciona additional_kwargs se existir e não estiver vazio\n      if (message.message.additional_kwargs && Object.keys(message.message.additional_kwargs).length > 0) {\n        conversationString += `Additional Kwargs: ${JSON.stringify(message.message.additional_kwargs)}\\n`;\n      }\n      \n      // Adiciona response_metadata se existir e não estiver vazio\n      if (message.message.response_metadata && Object.keys(message.message.response_metadata).length > 0) {\n        conversationString += `Response Metadata: ${JSON.stringify(message.message.response_metadata)}\\n`;\n      }\n      \n      // Adiciona invalid_tool_calls se existir\n      if (message.message.invalid_tool_calls && message.message.invalid_tool_calls.length > 0) {\n        conversationString += `Invalid Tool Calls: ${JSON.stringify(message.message.invalid_tool_calls)}\\n`;\n      }\n      \n      conversationString += \"\\n---\\n\\n\";\n    }\n  } else {\n    // Se não for array, converte o objeto inteiro em string\n    conversationString += JSON.stringify(data, null, 2) + \"\\n\\n\";\n  }\n}\n\n// Retorna o resultado\nreturn [{\n  json: {\n    conversation_string: conversationString,\n    total_messages: inputData.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        944
+      ],
+      "id": "5d4911b4-d31b-46fe-a8bd-6f4cb6de10c5",
+      "name": "Formata a memória em string"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.lucasfelix.com/webhook/3cbb61ed-5796-4a96-927a-ae5d6ea870e21",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $node[\"Merge\"].json[\"URL planilha\"] }}"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $item(\"0\").$node[\"Basic LLM Chain\"].json[\"text\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        768,
+        656
+      ],
+      "id": "60a47cd1-0a71-4e80-95c8-384d1627ab60",
+      "name": "Envia pra revisão"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($items(\"Get row(s) in sheet\").map(i => i.json)) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=# SYSTEM PROMPT - GERADOR DE PROMPTS DE AVALIAÇÃO\n\n## OBJETIVO\nVocê é um especialista em criação de sistemas de avaliação que deve analisar testes/critérios fornecidos e gerar um prompt de avaliação estruturado e detalhado para revisar atendimentos de IA.\n\n## MISSÃO\nA partir dos testes e critérios fornecidos pelo usuário, você deve:\n1. Analisar cada teste/critério apresentado\n2. Extrair regras, padrões e expectativas\n3. Organizar em categorias lógicas de avaliação\n4. Definir pesos proporcionais à importância\n5. Criar escalas de pontuação detalhadas\n6. Estabelecer exemplos práticos de acertos e erros\n7. Estruturar tudo em um prompt de avaliação completo\n\n## ESTRUTURA OBRIGATÓRIA DO PROMPT GERADO\n\n### 1. CABEÇALHO E INSTRUÇÕES GERAIS\n- Título do sistema de avaliação\n- Explicação da missão do avaliador\n- Score total (sempre 0-100)\n- Instruções básicas de uso\n\n### 2. CRITÉRIOS DE AVALIAÇÃO\nPara cada critério identificado nos testes, criar:\n\n**Formato padrão:**\n```\n### CRITÉRIO X: [NOME] (Peso: [X] pontos)\n\n**O que avaliar:**\n[Lista específica do que observar]\n\n**Pontuação:**\n- ✅ [X] pontos: [Descrição do desempenho excelente]\n- ⚠️ [X] pontos: [Descrição do desempenho bom/regular]  \n- ⚠️ [X] pontos: [Descrição do desempenho ruim]\n- ❌ 0 pontos: [Descrição do desempenho crítico]\n\n**Exemplos de ERROS:**\n- ❌ [Exemplo específico 1]\n- ❌ [Exemplo específico 2]\n\n**Exemplos de ACERTOS:**\n- ✅ [Exemplo específico 1]\n- ✅ [Exemplo específico 2]\n```\n\n### 3. SISTEMA DE PONTUAÇÃO\n- Distribuição de pesos que some exatamente 100 pontos\n- Classificação por faixas (Excelente, Bom, Regular, Ruim, Crítico)\n- Fórmula de cálculo clara\n\n### 4. FORMATO DE RESPOSTA\nTemplate exato que o avaliador deve seguir, incluindo:\n- Score final\n- Pontuação detalhada por critério\n- Principais observações\n- Recomendações de melhoria\n- Pontos fortes e de atenção\n\n### 5. CRITÉRIOS CRÍTICOS DE DESCLASSIFICAÇÃO\nLista de erros graves que automaticamente classificam como CRÍTICO\n\n### 6. INSTRUÇÕES DE USO\nComo aplicar o prompt na prática\n\n## DIRETRIZES PARA ANÁLISE DOS TESTES\n\n### CATEGORIZAÇÃO AUTOMÁTICA\nOrganize os testes fornecidos nestas categorias padrão:\n\n1. **IDENTIDADE E PAPEL** (15-25 pontos)\n   - Como a IA se apresenta\n   - Distinção de papéis\n   - Uso correto de pronomes\n\n2. **FORMATAÇÃO E ESTRUTURA** (10-20 pontos)\n   - Placeholders\n   - Links\n   - Estrutura das mensagens\n   - Organização do conteúdo\n\n3. **FLUXO E PROCESSO** (20-30 pontos)\n   - Sequência correta de etapas\n   - Lógica do atendimento\n   - Direcionamento adequado\n   - Gestão de objeções\n\n4. **COMUNICAÇÃO** (15-25 pontos)\n   - Tom de voz\n   - Linguagem\n   - Clareza\n   - Uso de emojis\n\n5. **REGRAS ESPECÍFICAS** (10-20 pontos)\n   - Limitações técnicas\n   - Restrições de comportamento\n   - Regras de interação\n\n6. **SITUAÇÕES ESPECIAIS** (5-15 pontos)\n   - Casos excepcionais\n   - Tratamento de problemas\n   - Escalação\n\n### **⚠️ RESTRIÇÃO CRÍTICA - NÃO AVALIAR FERRAMENTAS**\n**NUNCA inclua critérios sobre:**\n- Uso de ferramentas externas\n- Acionamento de sistemas\n- Integração com APIs\n- Chamadas de funções\n- Execução de comandos\n\n**Motivo:** O sistema de avaliação não consegue detectar se ferramentas foram acionadas ou não.\n\n### DISTRIBUIÇÃO DE PESOS\n- **Critérios críticos de funcionamento**: 20-30 pontos\n- **Critérios importantes de qualidade**: 15-25 pontos  \n- **Critérios médios de otimização**: 10-20 pontos\n- **Critérios menores de polimento**: 5-15 pontos\n\n### ESCALAS DE PONTUAÇÃO\nPara cada critério, sempre criar 4 níveis:\n- **Excelente**: 100% da pontuação (sem erros)\n- **Bom**: 70-80% da pontuação (erros leves)\n- **Regular**: 40-50% da pontuação (erros moderados)\n- **Crítico**: 0% da pontuação (erros graves)\n\n## INSTRUÇÕES ESPECÍFICAS\n\n### ANÁLISE DOS TESTES\n1. **Identifique padrões**: Que comportamentos são esperados/proibidos?\n2. **Extraia regras**: Quais são as diretrizes explícitas e implícitas?\n3. **Classifique importância**: Quais erros são mais graves?\n4. **Crie exemplos**: Use os próprios testes como base para exemplos\n5. **IGNORE referências a ferramentas**: Foque apenas no conteúdo das respostas\n\n### REDAÇÃO DO PROMPT\n- **Seja específico**: Evite avaliações subjetivas\n- **Use linguagem clara**: Instruções diretas e objetivas\n- **Inclua exemplos práticos**: Baseados nos testes fornecidos\n- **Mantenha consistência**: Formato uniforme em todos os critérios\n- **Foque no observável**: Apenas o que aparece no texto das conversas\n\n### VALIDAÇÃO FINAL\nAntes de entregar, verifique se:\n- [ ] Soma total = 100 pontos exatos\n- [ ] Todos os testes são cobertos por algum critério\n- [ ] Exemplos são específicos e claros\n- [ ] Formato de resposta está completo\n- [ ] Critérios críticos estão identificados\n- [ ] **NENHUM critério avalia uso de ferramentas**\n\n## EXEMPLO DE ESTRUTURA DE OUTPUT\n```markdown\n# PROMPT DE AVALIAÇÃO - [NOME DO SISTEMA]\n\n## Sistema de Ranqueamento com Score de 0 a 100\n\n## 📋 INSTRUÇÕES GERAIS\n[Instruções baseadas no contexto fornecido]\n\n## 🎯 CRITÉRIOS DE AVALIAÇÃO\n\n### **1. [CRITÉRIO 1] (Peso: X pontos)**\n[Estrutura completa conforme template]\n\n### **2. [CRITÉRIO 2] (Peso: X pontos)**\n[Estrutura completa conforme template]\n\n[... demais critérios ...]\n\n## 📊 SISTEMA DE PONTUAÇÃO FINAL\n[Fórmula e classificações]\n\n## 📝 FORMATO DE RESPOSTA DA AVALIAÇÃO\n[Template exato]\n\n## 🚨 CRITÉRIOS CRÍTICOS DE DESCLASSIFICAÇÃO\n[Lista de erros graves]\n\n## ⚡ INSTRUÇÕES FINAIS\n[Como usar o prompt]\n```\n\n## ORIENTAÇÕES FINAIS\n\n- **Adapte-se ao contexto**: Cada conjunto de testes pode ter especificidades\n- **Mantenha objetividade**: Critérios mensuráveis, não subjetivos\n- **Priorize clareza**: O avaliador deve entender exatamente o que fazer\n- **Seja abrangente**: Cubra todos os aspectos importantes dos testes\n- **Mantenha praticidade**: O prompt deve ser usável na prática\n- **FOQUE NO CONTEÚDO**: Avalie apenas o que está visível nas mensagens\n\n**AGORA ANALISE OS TESTES FORNECIDOS E GERE O PROMPT DE AVALIAÇÃO COMPLETO!**"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        192,
+        544
+      ],
+      "id": "93fef001-68b0-4798-8ba1-743f3947cba0",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        272,
+        768
+      ],
+      "id": "35026205-d5ba-4ff2-8a5b-cca0fdd79284",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "ImbrexAB5AdJFN0m",
+          "name": "Vortex app"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        656
+      ],
+      "id": "8c1f66e1-19da-4b85-8623-9ffa772b1381",
+      "name": "Limit1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        544,
+        656
+      ],
+      "id": "ca2f1130-e32c-4b87-9952-7dd1c9f85a57",
+      "name": "Limit2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1680,
+        768
+      ],
+      "id": "68c7698c-ce06-4e3c-9049-8ce809626913",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "12321414214142142141244",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1680,
+        384
+      ],
+      "id": "ca91c388-c030-4dbc-82fc-f9897e8d6576",
+      "name": "Webhook",
+      "webhookId": "3cbb61ed-5796-4a96-927a-ae5d6ea870e2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1232,
+        608
+      ],
+      "id": "f2d134c1-be36-4fdb-82ce-441836bd1277",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "formTitle": "Agente Testado de agentes",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "URL da planilha"
+            },
+            {
+              "fieldLabel": "SessionId"
+            },
+            {
+              "fieldLabel": "Path do webhook"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        -1696,
+        624
+      ],
+      "id": "6a0bbf91-7a8c-4d06-91d9-fd0a003bc172",
+      "name": "On form submission",
+      "webhookId": "13d82233-bfcd-4b54-a642-92a3cd8a550e"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b4df685f-62a1-4a9e-bf94-9771a7d7621e",
+              "name": "URL planilha",
+              "value": "={{ $item(\"0\").$node[\"Webhook\"].json[\"body\"][\"url\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "2c86bcd2-6485-4c38-8899-bde7cf84989e",
+              "name": "sessionId",
+              "value": "={{ $item(\"0\").$node[\"Webhook\"].json[\"body\"][\"sessionId\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "ae6e70e6-3217-43fa-8b24-8fda80764d3a",
+              "name": "endpoint",
+              "value": "={{ $item(\"0\").$node[\"Webhook\"].json[\"body\"][\"endpoint\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1440,
+        400
+      ],
+      "id": "1a48fb2c-3780-4ea7-8423-2dc9babdaa1f",
+      "name": "normalizar2"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.lucasfelix.com",
+            "user-agent": "axios/1.8.3",
+            "content-length": "188",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "x-forwarded-for": "172.18.0.1",
+            "x-forwarded-host": "webhook.lucasfelix.com",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "2ec58babc22d",
+            "x-real-ip": "172.18.0.1"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "url": "https://docs.google.com/spreadsheets/d/1gqqWsqzD3CMjYye8QzEeWJrBo_fSD2Z33zWt2sdysMg/edit?gid=759046731#gid=759046731",
+            "sessionId": "teste01",
+            "endpoint": "fino_toque_testes_testador"
+          },
+          "webhookUrl": "https://webhook.lucasfelix.com/webhook/12321414214142142141244",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "normalizar1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Puxa histórico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalizar": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "agente_principal": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalizar1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Puxa histórico": {
+      "main": [
+        [
+          {
+            "node": "Formata a memória em string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formata a memória em string": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Limit1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Limit2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit1": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit2": {
+      "main": [
+        [
+          {
+            "node": "Envia pra revisão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "normalizar2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalizar2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7ed70d6f-811b-461e-985b-be861d6febc0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6621628722aa5347c8b1013e0681aaac75a5c961fb103161daedf79fde4fd1e"
+  },
+  "id": "eSZgbIUFzicGuxuo",
+  "tags": []
+}

@@ -1,0 +1,829 @@
+{
+  "name": "Agente Criador de Testes",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c775fd8c-b9c1-458d-826c-298487efc8e2",
+              "name": "system prompt",
+              "value": "={{ $item(\"0\").$node[\"On form submission1\"].json[\"System prompt\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "c0a3608a-ba81-4520-be21-61dcbdf0db69",
+              "name": "URL da planilha",
+              "value": "={{ $item(\"0\").$node[\"On form submission1\"].json[\"URL da planilha\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "0623685f-6464-4d03-94fb-c0f07670e13f",
+              "name": "SessionId",
+              "value": "={{ $json.SessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "ba245708-a9dd-4cd5-a4e8-8e9f3c11b339",
+              "name": "Path do webhook",
+              "value": "={{ $json[\"Path do webhook\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "d4fea625-cffb-4008-bae8-710f9c60a388",
+              "name": "Novo teste ou repete?",
+              "value": "={{ $json[\"Novo teste ou repete?\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1600,
+        864
+      ],
+      "id": "452e1549-d3a9-4a9e-adad-7ef416addfae",
+      "name": "normalizer"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1824,
+        768
+      ],
+      "id": "8d8234af-a0af-48fc-8201-9e3387698204",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c775fd8c-b9c1-458d-826c-298487efc8e2",
+              "name": "system prompt",
+              "value": "={{ $json[\"body\"][\"prompt\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "c0a3608a-ba81-4520-be21-61dcbdf0db69",
+              "name": "URL da planilha",
+              "value": "={{ $json[\"body\"][\"url\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1600,
+        576
+      ],
+      "id": "b0a51ef8-a5f2-4ad7-b79e-e0e6358e2759",
+      "name": "normalizer2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1376,
+        768
+      ],
+      "id": "c24bde73-22a6-42a0-8ae5-42eb38d2a8ab",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.lucasfelix.com/webhook/12321414214142142141244",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}"
+            },
+            {
+              "name": "sessionId",
+              "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"SessionId\"] }}"
+            },
+            {
+              "name": "endpoint",
+              "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"Path do webhook\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        992,
+        768
+      ],
+      "id": "fba8496e-f034-43c5-bf49-f8d1959eeb68",
+      "name": "Envia pra testar"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $item(\"0\").$node[\"Merge\"].json[\"system prompt\"] }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=<system_prompt>\n<identity>\nVocê é um Gerador Automático de Testes para Agentes de IA Conversacionais.\n\nSua função é receber o contexto de um negócio e IMEDIATAMENTE gerar testes completos no formato visual padronizado especificado.\n\nVOCÊ NÃO FAZ PERGUNTAS. VOCÊ APENAS EXECUTA E RETORNA OS TESTES.\n</identity>\n\n<core_behavior>\nREGRAS ABSOLUTAS:\n1. ❌ NUNCA faça perguntas ao usuário\n2. ❌ NUNCA peça confirmação ou esclarecimentos\n3. ✅ SEMPRE gere os testes com as informações fornecidas\n4. ✅ SEMPRE use o formato EXATO especificado (com emojis e checkboxes)\n5. ✅ Se informação estiver faltando, faça suposições razoáveis baseadas no nicho\n\nEXECUÇÃO:\n- Recebeu contexto → Analise → Gere testes → Retorne no formato\n- Sem confirmações, sem perguntas, sem sugestões\n- Output direto e parseável\n</core_behavior>\n\n<test_generation_rules>\nQUANTIDADE DE TESTES:\n- Se usuário especificar quantidade → gere exatamente essa quantidade\n- Se NÃO especificar → gere 10 testes por padrão\n\nDISTRIBUIÇÃO DE CATEGORIAS:\n1. FLUXO IDEAL: 20-30%\n2. COM OBJEÇÕES: 30-40%\n3. URGENTE: 10-15%\n4. EDGE CASES: 15-25%\n5. COMPLEXO: 10-15%\n\nREGRAS DE PERSONA:\n- Nomes brasileiros realistas (ou do país do negócio)\n- Idades entre 18-65 anos (variadas)\n- Ocupações diversas e críveis\n- Comportamentos autênticos e naturais\n- Necessidades alinhadas ao negócio\n\nREGRAS DE VALIDAÇÕES:\n- Mínimo 8 validações por teste\n- Máximo 15 validações por teste\n- Cada validação deve ser específica e observável\n- Use [ ] no início de cada validação (checkbox)\n- Progressão lógica (início → meio → fim)\n- Sempre incluir validação de finalização\n\nREGRAS DE MENSAGEM INICIAL:\n- Natural e realista\n- Entre aspas duplas\n- Pode incluir mensagens subsequentes marcadas com [contexto]\n</test_generation_rules>\n\n<mandatory_output_format>\nFORMATO OBRIGATÓRIO - EXATAMENTE ASSIM:\n\nTESTE [número com 2 dígitos] - [Nome Descritivo do Teste]\n\n👤 PERSONA:\n[Nome], [idade] anos, [ocupação], [contexto relevante em uma linha]\n\n🎭 COMPORTAMENTO:\n[Descrição de como a persona se comporta durante o atendimento. 2-4 linhas explicando suas reações, estado emocional, nível de decisão, etc.]\n\n💬 MENSAGEM INICIAL:\n\"[Primeira mensagem que a persona envia]\"\n[se houver mensagens subsequentes: [contexto] \"[mensagem]\"]\n\n✅ O QUE VALIDAR:\n[ ] [Validação 1 - descrição específica e observável]\n[ ] [Validação 2 - descrição específica e observável]\n[ ] [Validação 3 - descrição específica e observável]\n[ ] [Validação 4 - descrição específica e observável]\n[ ] [Validação 5 - descrição específica e observável]\n[ ] [Validação 6 - descrição específica e observável]\n[ ] [Validação 7 - descrição específica e observável]\n[ ] [Validação 8 - descrição específica e observável]\n[ ] [Validação N - descrição específica e observável]\n\n---\n\nREGRAS CRÍTICAS DO FORMATO:\n1. Use EXATAMENTE os emojis mostrados: 👤 🎭 💬 ✅\n2. Cada teste separado por \"---\" (3 hífens)\n3. Título começa com \"TESTE\" seguido de número com 2 dígitos (01, 02, 03...)\n4. Persona em UMA linha só\n5. Comportamento em parágrafo corrido (2-4 linhas)\n6. Mensagem inicial entre aspas duplas\n7. Mensagens subsequentes com [contexto] antes\n8. Cada validação começa com [ ] (checkbox vazio)\n9. NÃO adicione texto antes do primeiro teste\n10. NÃO adicione texto após o último \"---\"\n</mandatory_output_format>\n\n<example_output>\nTESTE 01 - Manchas Faciais com Conexão Emocional\n\n👤 PERSONA:\nFernanda Lima, 38 anos, professora, sofre com manchas há 5 anos após gravidez\n\n🎭 COMPORTAMENTO:\nUsuária emocionalmente afetada pelo problema. Menciona que evita sair sem maquiagem. Responde de forma detalhada e compartilha sentimentos. Está em busca de solução definitiva.\n\n💬 MENSAGEM INICIAL:\n\"Olá, tenho manchas no rosto que me incomodam muito\"\n[após qualificação] \"Apareceram depois da minha segunda gravidez, há uns 5 anos\"\n[quando perguntada] \"Sim, só saio de casa bem maquiada... afeta minha autoestima\"\n\n✅ O QUE VALIDAR:\n[ ] Faz pergunta emocional: \"Há quanto tempo você sofre com essas manchas?\"\n[ ] Faz segunda pergunta: \"Isso te incomoda ao ponto de você sair só maquiada?\"\n[ ] Aguarda respostas ANTES de apresentar tratamentos\n[ ] Menciona \"Laser Lavieen\" (NÃO \"Lavian\")\n[ ] Descreve Laser como \"mais avançado e queridinho da clínica\" (NÃO \"ajeita tudo\")\n[ ] Photo_Bank executado SEM mensagem antes\n[ ] Diz \"acabei de enviar\" se fotos enviadas\n[ ] Explica procedimento ANTES de mencionar valor\n[ ] Só usa consulta_preco SE cliente perguntar valor\n[ ] Direciona para consulta (etapa 3.1.1)\n\n---\n\nTESTE 02 - Limpeza de Pele com Objeção de Valor\n\n👤 PERSONA:\nJúlia Santos, 25 anos, estudante universitária, orçamento limitado\n\n🎭 COMPORTAMENTO:\nUsuária interessada mas sensível a preço. Pergunta valor logo após entender o procedimento. Hesita quando vê o preço. Menciona que já viu mais barato em outros lugares.\n\n💬 MENSAGEM INICIAL:\n\"Queria fazer uma limpeza de pele\"\n[depois] \"Quanto custa?\"\n[depois] \"Nossa, achei meio caro...\"\n\n✅ O QUE VALIDAR:\n[ ] Pergunta histórico: \"Já fez limpeza de pele antes?\"\n[ ] Explica procedimento ANTES de mencionar valor\n[ ] Menciona duração \"1h30\" na explicação\n[ ] Menciona transparência: \"extração pode ser desconfortável\"\n[ ] Executa consulta_preco SOMENTE após cliente perguntar\n[ ] Diz \"acabei de consultar\" ao informar valor\n[ ] Reforça diferencial: \"Não usamos cureta\"\n[ ] Reforça: \"13 anos de experiência\"\n[ ] Reforça: \"Equipe preparada pela Dra. Vislaine\"\n[ ] Menciona: \"condições facilitadas: parcelamento, pacotes com desconto\"\n[ ] NÃO usa emoji 😊 excessivamente (máximo 1-2 na conversa toda)\n\n---\n\nTESTE 03 - Afine-se com Pergunta sobre Valor\n\n👤 PERSONA:\nRoberto Carvalho, 42 anos, empresário, quer perder 18kg\n\n🎭 COMPORTAMENTO:\nUsuário direto e pragmático. Responde objetivamente. Após entender o programa, pergunta diretamente sobre valores. Quer saber quanto vai investir antes de decidir.\n\n💬 MENSAGEM INICIAL:\n\"Vi sobre o programa de emagrecimento de vocês, tenho interesse\"\n[depois] \"Quero perder uns 18 quilos\"\n[depois] \"Quanto custa o programa?\"\n\n✅ O QUE VALIDAR:\n[ ] Pergunta 1: \"Quantos quilos gostaria de eliminar?\"\n[ ] Pergunta 2: \"Já tentou emagrecer antes? O que fez?\"\n[ ] Pergunta 3: \"Alguém te indicou nosso afine-se ou viu em algum lugar?\"\n[ ] Photo_Bank com range correto (15kg a 20kg)\n[ ] Menciona \"sessões semanais de estética\" (NÃO \"consultas semanais\")\n[ ] Explica consulta ANTES de dar valor\n[ ] Quando cliente pergunta valor: executa consulta_preco\n[ ] Informa média: \"plano básico 2 meses varia entre R$ 3.900 e R$ 4.270\"\n[ ] Menciona: \"pode chegar a cerca de R$ 582,00 mensais em planos mais completos\"\n[ ] Reforça: \"primeiro passo é consulta inicial — só após avaliarmos seu histórico\"\n[ ] Explica consulta Afine-se: anamnese, bioimpedância, metas, método, liberação\n[ ] Pula etapa 3.1 e vai DIRETO para 3.2.1\n\n---\n</example_output>\n\n<validation_writing_guide>\nCada validação deve seguir estes padrões:\n\n✅ BOM:\n[ ] Faz pergunta emocional: \"Há quanto tempo você sofre com essas manchas?\"\n[ ] Menciona \"Laser Lavieen\" (NÃO \"Lavian\")\n[ ] Executa consulta_preco SOMENTE após cliente perguntar\n[ ] Diz \"acabei de consultar\" ao informar valor\n\n❌ RUIM:\n[ ] Faz perguntas corretas (muito genérico)\n[ ] Menciona o laser (qual laser? como?)\n[ ] Consulta preço (quando? em que contexto?)\n\nFÓRMULA:\n[ ] [Ação específica observável] + [Contexto/condição se necessário] + [Frase exata entre aspas se aplicável]\n\nEXEMPLOS POR TIPO:\n\nTiming/Sequência:\n[ ] Aguarda respostas ANTES de apresentar tratamentos\n[ ] Explica procedimento ANTES de mencionar valor\n[ ] Photo_Bank executado SEM mensagem antes\n\nConteúdo Específico:\n[ ] Menciona \"Laser Lavieen\" (NÃO \"Lavian\")\n[ ] Descreve como \"mais avançado e queridinho da clínica\"\n[ ] Menciona duração \"1h30\" na explicação\n\nFerramentas/Ações:\n[ ] Executa consulta_preco quando cliente pergunta valor\n[ ] Photo_Bank com range correto (15kg a 20kg)\n[ ] Transfer_Agent executado após confirmação\n\nComunicação/Tom:\n[ ] Diz \"acabei de consultar\" ao informar valor\n[ ] Mantém tom empático durante todo atendimento\n[ ] NÃO usa emoji 😊 excessivamente\n\nRegras de Negócio:\n[ ] Só usa consulta_preco SE cliente perguntar valor\n[ ] Direciona para consulta (etapa 3.1.1)\n[ ] Pula etapa 3.1 e vai DIRETO para 3.2.1\n</validation_writing_guide>\n\n<adaptation_by_niche>\nAdapte automaticamente ao nicho:\n\nCLÍNICA/ESTÉTICA:\n- Personas: problemas estéticos, inseguranças, histórico médico\n- Validações: ferramentas específicas (Photo_Bank, consulta_preco)\n- Regras: preço após explicação, transparência sobre desconforto\n- Ferramentas mencionadas: Laser, procedimentos específicos\n\nE-COMMERCE:\n- Personas: necessidades de compra, comparação de produtos\n- Validações: informações de estoque, prazo, frete\n- Regras: disponibilidade, políticas de troca\n- Ações: adicionar ao carrinho, finalizar compra\n\nSAAS/TECH:\n- Personas: necessidades empresariais, ROI, integrações\n- Validações: explicação técnica, cases de sucesso\n- Regras: trial, demo, proposta comercial\n- Ações: agendar demo, enviar documentação\n\nSUPORTE:\n- Personas: clientes com problemas, frustrados\n- Validações: coleta de informações, troubleshooting\n- Regras: SLA, escalação, follow-up\n- Ações: abrir ticket, agendar retorno\n\nAGENDAMENTO:\n- Personas: precisam marcar horários, remarcação\n- Validações: disponibilidade, confirmação, lembretes\n- Regras: política de cancelamento, antecedência\n- Ações: confirmar agendamento, enviar comprovante\n</adaptation_by_niche>\n\n<quality_checklist>\nANTES DE RETORNAR, VALIDE:\n\n✅ Todos os emojis estão presentes? (👤 🎭 💬 ✅)\n✅ Numeração sequencial com 2 dígitos? (01, 02, 03...)\n✅ Persona em UMA linha?\n✅ Comportamento tem 2-4 linhas?\n✅ Mensagem entre aspas duplas?\n✅ Cada validação começa com [ ]?\n✅ Mínimo 8 validações por teste?\n✅ Testes separados por \"---\"?\n✅ Nenhum texto antes do primeiro teste?\n✅ Nenhum texto após último \"---\"?\n</quality_checklist>\n\n<critical_reminders>\n1. NÃO faça perguntas - EXECUTE\n2. NÃO adicione explicações - APENAS TESTES\n3. NÃO quebre o formato - USE EMOJIS E CHECKBOXES\n4. SEMPRE persona em UMA linha\n5. SEMPRE comportamento em parágrafo\n6. SEMPRE mensagens entre aspas\n7. SEMPRE validações com [ ]\n8. SEMPRE separe testes com \"---\"\n9. COMECE direto com \"TESTE 01\"\n10. TERMINE com \"---\" após último teste\n</critical_reminders>\n\n<immediate_execution>\nAo receber input do usuário:\n\n1. Identifique o nicho/negócio\n2. Identifique quantidade (padrão: 10)\n3. Identifique aspectos específicos (se houver)\n4. Identifique ferramentas/termos específicos do negócio\n5. Gere os testes NO FORMATO VISUAL EXATO\n6. Retorne APENAS os testes\n\nCOMEÇE A RESPOSTA COM:\nTESTE 01 - [nome]\n\nTERMINE A RESPOSTA COM:\n---\n\n(após o último teste)\n\nNADA ANTES. NADA DEPOIS.\n</immediate_execution>\n\n</system_prompt>"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -32,
+        768
+      ],
+      "id": "1e20e868-1a01-4323-9271-e8720b0597c1",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "x-ai/grok-4-fast",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        48,
+        992
+      ],
+      "id": "8ee69e1a-cd0d-42c8-8792-8e3faad76176",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "ImbrexAB5AdJFN0m",
+          "name": "Vortex app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import re\n\n# Pega output da LLM\ninput_data = items[0].json\n\n# Tenta diferentes campos possíveis\noutput_llm = None\nif 'output' in input_data:\n    output_llm = input_data['output']\nelif 'text' in input_data:\n    output_llm = input_data['text']\nelif 'content' in input_data:\n    output_llm = input_data['content']\nelif 'response' in input_data:\n    output_llm = input_data['response']\nelse:\n    for key, value in input_data.items():\n        if isinstance(value, str) and len(value) > 100:\n            output_llm = value\n            break\n\nif not output_llm:\n    return [{'json': {'error': 'Output da LLM não encontrado'}}]\n\n# Parse dos testes\ntests = []\nblocks = output_llm.split('\\n---\\n')\n\nfor block in blocks:\n    block = block.strip()\n    \n    if not block or not block.startswith('TESTE'):\n        continue\n    \n    test = {}\n    \n    # ========================================\n    # ADICIONA O TESTE COMPLETO/INTEIRO\n    # ========================================\n    test['teste_completo'] = block\n    \n    try:\n        # Parse ID e Nome\n        first_line = block.split('\\n')[0]\n        match = re.match(r'TESTE (\\d+) - (.+)', first_line)\n        if match:\n            test['id'] = match.group(1)\n            test['nome'] = match.group(2).strip()\n        \n        # Parse PERSONA\n        persona_match = re.search(r'👤 PERSONA:\\s*\\n(.+?)(?=\\n\\n|\\n🎭)', block, re.DOTALL)\n        if persona_match:\n            test['persona'] = persona_match.group(1).strip()\n        \n        # Parse COMPORTAMENTO\n        comportamento_match = re.search(r'🎭 COMPORTAMENTO:\\s*\\n(.+?)(?=\\n\\n|\\n💬)', block, re.DOTALL)\n        if comportamento_match:\n            test['comportamento'] = comportamento_match.group(1).strip()\n        \n        # Parse MENSAGEM\n        mensagem_match = re.search(r'💬 MENSAGEM INICIAL:\\s*\\n(.+?)(?=\\n\\n|\\n✅)', block, re.DOTALL)\n        if mensagem_match:\n            test['mensagem'] = mensagem_match.group(1).strip()\n        \n        # Parse VALIDAÇÕES\n        validacoes_match = re.search(r'✅ O QUE VALIDAR:\\s*\\n(.+?)$', block, re.DOTALL)\n        if validacoes_match:\n            validacoes_text = validacoes_match.group(1)\n            validacoes = re.findall(r'\\[ \\] (.+)', validacoes_text)\n            test['validacoes'] = validacoes\n            test['total_validacoes'] = len(validacoes)\n        else:\n            test['validacoes'] = []\n            test['total_validacoes'] = 0\n        \n        tests.append(test)\n        \n    except Exception as e:\n        test['parse_error'] = str(e)\n        tests.append(test)\n\n# Retorna cada teste como um item separado\nif tests:\n    return [{'json': test} for test in tests]\nelse:\n    return [{'json': {'error': 'Nenhum teste encontrado'}}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        768
+      ],
+      "id": "a8523abe-d48c-45c8-a47a-7ce1ebb0b40c",
+      "name": "Divide cada teste"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 759046731,
+          "mode": "list",
+          "cachedResultName": "Testes Detalhados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gqqWsqzD3CMjYye8QzEeWJrBo_fSD2Z33zWt2sdysMg/edit#gid=759046731"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Testes": "={{ $json[\"teste_completo\"] }}"
+          },
+          "matchingColumns": [
+            "Testes"
+          ],
+          "schema": [
+            {
+              "id": "Testes",
+              "displayName": "Testes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        544,
+        768
+      ],
+      "id": "bc05fbff-f768-4494-a2fe-e28149cdafd5",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        768,
+        768
+      ],
+      "id": "d9f176f6-8bf3-48c3-8c4e-0e13d1c7ec04",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "208d7349-1ffd-4c11-894c-17dcfcc3dfc7",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1824,
+        576
+      ],
+      "id": "8cb76ee7-b1c8-4e55-94f2-e17a11b67527",
+      "name": "Webhook",
+      "webhookId": "208d7349-1ffd-4c11-894c-17dcfcc3dfc7"
+    },
+    {
+      "parameters": {
+        "formTitle": "Agente Testado de agentes",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "URL da planilha"
+            },
+            {
+              "fieldLabel": "SessionId"
+            },
+            {
+              "fieldLabel": "Path do webhook"
+            },
+            {
+              "fieldLabel": "System prompt"
+            },
+            {
+              "fieldLabel": "Novo teste ou repete?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "novo teste"
+                  },
+                  {
+                    "option": "repete o mesmo"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {
+          "path": "asdasdsad"
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        -1824,
+        960
+      ],
+      "id": "7165862b-a778-4a5a-81f8-aa6b5016bf25",
+      "name": "On form submission1",
+      "webhookId": "13d82233-bfcd-4b54-a642-92a3cd8a550e"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cc206ea2-e830-4f37-8b05-78864f2d7a5b",
+              "leftValue": "={{ $item(\"0\").$node[\"Merge\"].json[\"Novo teste ou repete?\"] }}",
+              "rightValue": "novo teste",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1152,
+        768
+      ],
+      "id": "6344397d-d3ff-40b1-a407-ddbe5afe7217",
+      "name": "Novo teste?"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 759046731,
+          "mode": "list",
+          "cachedResultName": "Testes Detalhados",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gqqWsqzD3CMjYye8QzEeWJrBo_fSD2Z33zWt2sdysMg/edit#gid=759046731"
+        },
+        "numberToDelete": 100
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -928,
+        672
+      ],
+      "id": "0d95c7c5-ad89-4faa-b0ca-53770381ec3d",
+      "name": "Delete rows or columns from sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 997172835,
+          "mode": "list",
+          "cachedResultName": "Análises",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gqqWsqzD3CMjYye8QzEeWJrBo_fSD2Z33zWt2sdysMg/edit#gid=997172835"
+        },
+        "numberToDelete": 100
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -704,
+        672
+      ],
+      "id": "14945e00-f5c1-4135-a274-37cf5d2bf811",
+      "name": "Delete rows or columns from sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1492281896,
+          "mode": "list",
+          "cachedResultName": "Revisão",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gqqWsqzD3CMjYye8QzEeWJrBo_fSD2Z33zWt2sdysMg/edit#gid=1492281896"
+        },
+        "numberToDelete": 100
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -480,
+        672
+      ],
+      "id": "9d003871-63dc-4217-9cbf-b73ed5cfe498",
+      "name": "Delete rows or columns from sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1060925363,
+          "mode": "list",
+          "cachedResultName": "Resultado",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gqqWsqzD3CMjYye8QzEeWJrBo_fSD2Z33zWt2sdysMg/edit#gid=1060925363"
+        },
+        "numberToDelete": 100
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -256,
+        672
+      ],
+      "id": "a97d9f24-6ec6-49e6-9761-d77407af8d84",
+      "name": "Delete rows or columns from sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 997172835,
+          "mode": "list",
+          "cachedResultName": "Análises",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gqqWsqzD3CMjYye8QzEeWJrBo_fSD2Z33zWt2sdysMg/edit#gid=997172835"
+        },
+        "numberToDelete": 100
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -704,
+        864
+      ],
+      "id": "419d4a3c-1026-4475-bf1e-143222404169",
+      "name": "Delete rows or columns from sheet4",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1492281896,
+          "mode": "list",
+          "cachedResultName": "Revisão",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gqqWsqzD3CMjYye8QzEeWJrBo_fSD2Z33zWt2sdysMg/edit#gid=1492281896"
+        },
+        "numberToDelete": 100
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -480,
+        864
+      ],
+      "id": "69a73eec-ee07-4642-a65e-28403eeabc59",
+      "name": "Delete rows or columns from sheet5",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1060925363,
+          "mode": "list",
+          "cachedResultName": "Resultado",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1gqqWsqzD3CMjYye8QzEeWJrBo_fSD2Z33zWt2sdysMg/edit#gid=1060925363"
+        },
+        "numberToDelete": 100
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -256,
+        864
+      ],
+      "id": "b725d1f1-8867-4d7f-bc25-850f20ad56c6",
+      "name": "Delete rows or columns from sheet6",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Basic LLM Chain": [
+      {
+        "json": {
+          "text": "TESTE 01 - Fluxo Ideal para Manchas com Laser Lavieen\n\n👤 PERSONA:\nAna Paula Oliveira, 35 anos, designer gráfica, incomoda-se com manchas faciais há 3 anos pós-exposição solar\n\n🎭 COMPORTAMENTO:\nUsuária aberta e emocional, compartilha detalhes pessoais rapidamente. Responde com entusiasmo às perguntas empáticas e busca orientação clara. Está motivada para soluções personalizadas, mas precisa de conexão antes de decidir agendar.\n\n💬 MENSAGEM INICIAL:\n\"Olá, tenho manchas no rosto que me deixam insegura, especialmente no trabalho\"\n\n✅ O QUE VALIDAR:\n[ ] Inicia com pergunta de conexão emocional: \"Há quanto tempo essas manchas te incomodam?\"\n[ ] Faz segunda pergunta empática: \"Você evita sair sem maquiagem por isso?\"\n[ ] Segue estrutura SPIN: pergunta situação antes de problema\n[ ] Explica consulta inicial como gratuita, mencionando avaliação de contraindicações\n[ ] Prefere frase positiva: \"Aqui é 100% personalizado\" sem expressões negativas\n[ ] Menciona nome correto: \"Laser Lavieen\" como \"o mais avançado da atualidade e o queridinho da clínica\"\n[ ] Evita \"ajeita tudo\" e descreve benefícios educativos\n[ ] Após citar consulta, pergunta turno: \"Melhor horário para você: manhã ou tarde?\"\n[ ] Confirma agendamento com postura consultiva e natural\n[ ] Usa emojis com moderação, sem excesso de 💜\n[ ] Mantém tom acolhedor e autoridade profissional\n[ ] Direciona para agendamento após implicação da dor\n\n---\n\nTESTE 02 - Objeção de Preço na Limpeza de Pele\n\n👤 PERSONA:\nCarlos Mendes, 28 anos, vendedor freelance, interessado em limpeza mas sensível a custos, já fez procedimentos baratos antes\n\n🎭 COMPORTAMENTO:\nUsuário prático, mas hesitante com valores. Pergunta preço cedo e compara com concorrentes. Responde curto, mas abre para explicações educativas sobre benefícios. Precisa de reforço em diferenciais para superar objeção.\n\n💬 MENSAGEM INICIAL:\n\"Quero saber sobre limpeza de pele, quanto custa?\"\n[após explicação] \"Achei um pouco caro, vi mais barato em outro lugar\"\n[quando questionado] \"Faz tempo que não faço uma profunda, minha pele tá oleosa\"\n\n✅ O QUE VALIDAR:\n[ ] Aborda objeção empática: \"Entendo sua preocupação com o investimento 😊\"\n[ ] Pergunta para implicação: \"Há quanto tempo você não faz uma limpeza profunda?\"\n[ ] Educa sobre risco: \"Uma pele que fica muito tempo sem limpeza pode agravar manchas, oleosidade\"\n[ ] Só envia preço após pergunta, mencionando duração \"1h30\"\n[ ] Não envia tabela de preços, executa consulta_preco apenas quando perguntado\n[ ] Reforça diferenciais: \"Sem cureta\", \"atendimento personalizado\", \"13 anos de experiência\"\n[ ] Menciona treinamento: \"Equipe preparada pela Dra. Vislaine\"\n[ ] Oferece facilidades: \"parcelamento\", \"pacotes com desconto\", \"condições especiais\"\n[ ] Segue SPIN: explora problema e implicação antes de necessidade/solução\n[ ] Reforça atendimento seguro e personalizado\n[ ] Pergunta turno para agendamento após objeção resolvida\n[ ] Usa tom acolhedor sem excesso de emojis\n\n---\n\nTESTE 03 - Caso Urgente no Programa Afine-se\n\n👤 PERSONA:\nMariana Costa, 45 anos, gerente de RH, quer emagrecer 12kg urgentemente para evento em 2 meses, estressada com tentativas anteriores\n\n🎭 COMPORTAMENTO:\nUsuária ansiosa e direta, enfatiza urgência e frustrações passadas. Responde rápido, busca detalhes rápidos sobre resultados. Motiva-se com segurança e acompanhamento, mas precisa de empatia para conexão.\n\n💬 MENSAGEM INICIAL:\n\"Preciso emagrecer rápido, uns 12kg para um evento em 2 meses, o que vocês oferecem?\"\n[após qualificação] \"Já tentei dietas, mas não durou\"\n\n✅ O QUE VALIDAR:\n[ ] Inicia conexão: \"Há quanto tempo você tenta emagrecer e o que te frustra?\"\n[ ] Explica consulta Afine-se: inclui anamnese completa, bioimpedância, definição de metas\n[ ] Menciona método: acompanhamento multidisciplinar com nutricionista e educador físico\n[ ] Descreve sessões como \"semanal presenciais de estética\", não \"consultas semanais\"\n[ ] Inclui kit de suplementação e suporte diário na explicação\n[ ] Meta: menciona \"até -15kg em 60 dias\" com segurança e acompanhamento contínuo\n[ ] Quando perguntar valor, envia média: \"plano básico de 2 meses entre R$ 3.900 e 4.270\"\n[ ] Adiciona: \"pode chegar a cerca de R$ 582/mês em opções mais completas\"\n[ ] Reforça: \"O ideal é avaliarmos seu histórico para definir o plano exato\"\n[ ] Pergunta turno após consulta: \"Melhor horário: manhã ou tarde?\"\n[ ] Usa estrutura SPIN: situação urgente → problema → implicação → solução personalizada\n[ ] Mantém autoridade profissional com empatia, sem excesso de 💜\n\n---\n\nTESTE 04 - Objeção de Valor no Afine-se com Hesitação\n\n👤 PERSONA:\nRafael Silva, 52 anos, contador autônomo, quer perder 20kg mas preocupado com investimento alto, tem histórico de saúde\n\n🎭 COMPORTAMENTO:\nUsuário cauteloso e analítico, questiona valores e contraindicações. Responde com detalhes sobre saúde, hesita em agendar. Abre para educação sobre personalização, mas precisa de reforço em ROI e segurança.\n\n💬 MENSAGEM INICIAL:\n\"Interessado no Afine-se, mas quanto sai para perder 20kg?\"\n[após explicação] \"Parece bom, mas o preço é acessível? Tenho problemas de saúde\"\n\n✅ O QUE VALIDAR:\n[ ] Aborda objeção: \"Entendo sua preocupação com o investimento\"\n[ ] Explica consulta gratuita, enfatizando avaliação de contraindicações\n[ ] Prefere: \"Aqui é 100% personalizado\" sem negativos como \"empurrar pacote\"\n[ ] Para valor: envia média \"plano básico 2 meses entre R$ 3.900 e 4.270\"\n[ ] Menciona parcelamento implícito em \"R$ 582/mês em opções mais completas\"\n[ ] Descreve liberação com equipe responsável após consulta\n[ ] Reforça segurança: \"acompanhamento contínuo\" e multidisciplinar\n[ ] Segue SPIN: explora implicações de saúde antes de solução\n[ ] Pergunta turno consultivo: \"Melhor para você: manhã ou tarde?\"\n[ ] Usa tom empático e profissional, emojis moderados\n[ ] Reforça necessidade: \"avaliarmos seu histórico para plano exato\"\n[ ] Direciona para agendamento após objeção\n\n---\n\nTESTE 05 - Edge Case: Recusa Agendamento com Envio de Material\n\n👤 PERSONA:\nLuciana Ferreira, 31 anos, advogada, consulta sobre laser para cicatrizes, mas agenda lotada e decide pensar mais\n\n🎭 COMPORTAMENTO:\nUsuária educada mas indecisa, compartilha contexto profissional agitado. Responde com gratidão, mas recusa agendamento imediato. Curiosa com a clínica, abre para material adicional sem pressão.\n\n💬 MENSAGEM INICIAL:\n\"Tenho cicatrizes de acne, o laser Lavieen ajuda nisso?\"\n[após conversa] \"Gostei da explicação, mas agora não dá para agendar, minha agenda tá cheia\"\n[final] \"Pode me mandar mais infos?\"\n\n✅ O QUE VALIDAR:\n[ ] Cria conexão: \"Há quanto tempo essas cicatrizes te incomodam?\"\n[ ] Menciona Laser Lavieen como \"mais avançado e queridinho da clínica\"\n[ ] Explica consulta gratuita com contraindicações antes de qualquer objeção\n[ ] Na recusa, encerra com empatia: \"Entendo perfeitamente sua agenda\"\n[ ] Envia PDF resumido chamado \"mini apresentação da clínica\" para curiosidade\n[ ] Evita pressão, mantém tom acolhedor\n[ ] Segue SPIN até necessidade, mas adapta para não forçar ação\n[ ] Não usa excesso de 💜, foca em autoridade\n[ ] Confirma envio: \"Acabei de enviar o material para você revisar\"\n[ ] Oferece follow-up natural: \"Qualquer dúvida, é só voltar\"\n[ ] Reforça personalização educativa na conversa\n\n---"
+        }
+      }
+    ],
+    "On form submission1": [
+      {
+        "json": {
+          "URL da planilha": "https://docs.google.com/spreadsheets/d/1gqqWsqzD3CMjYye8QzEeWJrBo_fSD2Z33zWt2sdysMg/edit?gid=759046731#gid=759046731",
+          "SessionId": "teste02",
+          "Path do webhook": "fino_toque_testes_testador",
+          "System prompt": "✅ CHECKLIST GERAL DE CORREÇÕES — FINO TOQUE 🟣 1. Conexão e Empatia Inserir perguntas que criem conexão emocional antes da solução. Exemplos: “Há quanto tempo essas manchas te incomodam?” “Você evita sair sem maquiagem por isso?” 🟣 2. Explicação da Consulta Não começar pela objeção. Informar se é gratuita ou não antes de qualquer justificativa. Mencionar avaliação de contraindicações. Evitar expressões negativas (ex.: “empurrar pacote”). Preferir: “Algumas clínicas oferecem avaliação gratuita, mas usam protocolos prontos… Aqui é 100% personalizado.” 🟣 3. Agendamento Após citar consulta, perguntar turno: “Melhor horário para você: manhã ou tarde?” Confirmar com postura consultiva e natural (evitar margem para o NÃO). 🟣 4. Encerramento + Envio de Material Se o paciente não quiser agendar: Encerrar com empatia + enviar PDF resumido do estúdio. Chamar de “mini apresentação da clínica” para gerar curiosidade. 🟣 5. Emojis e Tom Evitar 💜 em excesso → usar apenas quando realmente fizer sentido. Manter acolhimento + autoridade profissional. 🟣 6. Programa Afine-se 📌 Trocar “consultas semanais” → “sessões semanais de estética” Consulta inicial do Afine-se inclui: Anamnese completa Bioimpedância Definição de metas Explicação do método Liberação com equipe responsável Método Afine-se: Acompanhamento multidisciplinar (nutricionista + educador físico) Sessões semanais presenciais de estética Kit de suplementação Suporte diário Meta: até -15kg em 60 dias Segurança e acompanhamento contínuo Quando perguntarem valor: Enviar média antes da consulta: “O plano básico de 2 meses fica entre R$ 3.900 e 4.270, podendo chegar a cerca de R$ 582/mês em opções mais completas.” “O ideal é avaliarmos seu histórico para definir o plano exato para você.” 🟣 7. Limpeza de Pele Incluir: Duração média: 1h30 Só enviar preço quando perguntado Não enviar tabela de preços Caso hesite: Reforçar diferenciais + facilidades: Parcelamento Pacotes com desconto Condições especiais Diferenciais da Fino Toque: Sem cureta Atendimento personalizado 13 anos de experiência Treinamento direto da Dra. Vislaine (professora da área) 🟣 8. Laser Lavieen Nome correto: Lavieen Evitar “ajeita tudo” Dizer: “Laser mais avançado da atualidade e o queridinho da clínica.” 🟣 9. Objeções Usar abordagem empática + educativa: “Entendo sua preocupação com o investimento 😊” “Uma pele que fica muito tempo sem limpeza pode agravar manchas, oleosidade…” “Há quanto tempo você não faz uma limpeza profunda?” Reforçar sempre o atendimento seguro e personalizado. 🟣 10. Estrutura de Conversa — SPIN Selling ✅ Seguir fluxo lógico: Situação → Problema → Implicação → Necessidade / Solução Primeiro dor Depois orientação Finalizar com ação direcionada (agendamento)",
+          "Novo teste ou repete?": "novo teste",
+          "submittedAt": "2025-10-31T16:11:15.323-03:00",
+          "formMode": "test"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "normalizer": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "normalizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalizer2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Novo teste?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Divide cada teste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Divide cada teste": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Envia pra testar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "normalizer2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission1": {
+      "main": [
+        [
+          {
+            "node": "normalizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Novo teste?": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete rows or columns from sheet4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet1": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet2": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet4": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet5": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet3": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet6": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "cc0b2f87-d133-46be-beea-4186e0f959c8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6621628722aa5347c8b1013e0681aaac75a5c961fb103161daedf79fde4fd1e"
+  },
+  "id": "ZYvP3R95cVP3Gf6v",
+  "tags": []
+}

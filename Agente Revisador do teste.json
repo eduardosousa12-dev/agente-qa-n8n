@@ -1,0 +1,822 @@
+{
+  "name": "Agente Revisador do teste",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Agente Revisador",
+        "formDescription": "Coloque o System prompt que será responsável pelo score ",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Cole aqui o system prompt"
+            },
+            {
+              "fieldLabel": "URL da planilha"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        -704,
+        48
+      ],
+      "id": "2386121b-5bb9-473c-94e1-fe068c6659c9",
+      "name": "On form submission",
+      "webhookId": "1a8ddcbc-877e-43f8-804f-1bcd1607481b"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c775fd8c-b9c1-458d-826c-298487efc8e2",
+              "name": "system prompt",
+              "value": "={{ $json[\"Cole aqui o system prompt\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "c0a3608a-ba81-4520-be21-61dcbdf0db69",
+              "name": "URL da planilha",
+              "value": "={{ $item(\"0\").$node[\"On form submission\"].json[\"URL da planilha\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -480,
+        176
+      ],
+      "id": "e18e86da-0584-4e05-a385-fd79127bd4c0",
+      "name": "normalizer"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 997172835,
+          "mode": "list",
+          "cachedResultName": "Análises",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kns3hYjhwWveqT-57k3hq_6sJR5zo71h_wQXrpxgM_c/edit#gid=997172835"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -32,
+        80
+      ],
+      "id": "89d61261-0aa1-4a24-a2f0-43e0c5153ca8",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4hhtGTqH5x7SM4Mm",
+          "name": "Google Agencia"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        192,
+        80
+      ],
+      "id": "cb8579be-a221-4706-9990-4b785dda5f0f",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $item(\"0\").$node[\"normalizer1\"].json[\"prompt\"] }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $item(\"0\").$node[\"Merge\"].json[\"system prompt\"] }}\n\n### NÃO RETORNE === NO OUTPUT"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        80
+      ],
+      "id": "252c8c56-0e0f-4003-8467-013066cd16a6",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "x-ai/grok-4-fast",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        880,
+        304
+      ],
+      "id": "2ad9fbda-8184-4121-9090-826f64b3739b",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "ImbrexAB5AdJFN0m",
+          "name": "Vortex app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "64cae341-39c0-4e3f-9387-1a92af3d20b9",
+              "name": "sessionId",
+              "value": "=Agente_revisador_{{ $now }}",
+              "type": "string"
+            },
+            {
+              "id": "900d86ca-c965-48ba-bfaa-ca25d06ad824",
+              "name": "prompt",
+              "value": "={{ $json[\"data\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        80
+      ],
+      "id": "1c9a3acd-3ad9-46e7-9b62-e1c241446d13",
+      "name": "normalizer1"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        416,
+        80
+      ],
+      "id": "0e3640d0-c342-401a-b636-ec481761a134",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"score\": \"5\",\n\t\"output\": \"todo o detalhamento da revisão em linguagem natural\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1008,
+        304
+      ],
+      "id": "b799b8eb-304a-4b5c-814a-f6ce23776853",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1492281896,
+          "mode": "list",
+          "cachedResultName": "Revisão",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kns3hYjhwWveqT-57k3hq_6sJR5zo71h_wQXrpxgM_c/edit#gid=1492281896"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $item(\"0\").$node[\"Loop Over Items\"].json[\"ID do teste\"] }}",
+            "Score": "={{ $item(\"0\").$node[\"AI Agent\"].json[\"output\"][\"score\"] }}",
+            "Output": "={{ $item(\"0\").$node[\"AI Agent\"].json[\"output\"][\"output\"].replaceAll('=','') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Output",
+              "displayName": "Output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1504,
+        208
+      ],
+      "id": "9e256973-e12e-4585-b9e3-5c5c476071e8",
+      "name": "Append row in sheet",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1492281896,
+          "mode": "list",
+          "cachedResultName": "Revisão",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kns3hYjhwWveqT-57k3hq_6sJR5zo71h_wQXrpxgM_c/edit#gid=1492281896"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        640,
+        -224
+      ],
+      "id": "e0ff2d56-e37d-44b8-8b75-ac8bf8ffa417",
+      "name": "Get row(s) in sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        240
+      ],
+      "id": "8d124c17-4736-4a2c-a310-b5c0934d6051",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        416,
+        -224
+      ],
+      "id": "c398aff1-0ae6-459b-9d47-bbf0c5f0e119",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        928,
+        -224
+      ],
+      "id": "fe04f695-3483-4394-9fc6-150c1884cd66",
+      "name": "Aggregate3"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1216,
+        -224
+      ],
+      "id": "88669217-9e48-46a9-a2e5-262bba2812d3",
+      "name": "Limit1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $node[\"Aggregate3\"].json[\"data\"] }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=# PROMPT DE ANÁLISE CONSOLIDADA - MÚLTIPLAS AVALIAÇÕES\n## Sistema Universal de Análise de Padrões e Score Geral (0 a 100)\n\n---\n\n## 📋 INSTRUÇÕES GERAIS\n\nVocê é um **Analisador Estratégico de Performance** especializado em avaliar múltiplas avaliações de atendimento de agentes de IA e identificar padrões, tendências e oportunidades de melhoria sistêmica.\n\n**Sua missão:**\n1. Receber múltiplas avaliações individuais de qualquer agente de IA (geradas por prompts de avaliação específicos)\n2. Analisar estatisticamente os dados consolidados\n3. Identificar PADRÕES RECORRENTES (erros e acertos)\n4. Mapear pontos críticos de melhoria\n5. Reconhecer pontos fortes consistentes\n6. Gerar uma NOTA GERAL de 0 a 100 (ponderada e justificada)\n7. Fornecer recomendações estratégicas de treinamento/ajuste\n\n**Flexibilidade:**\nEste prompt funciona para qualquer agente de IA, independente do:\n- Nome do agente (Joyce, assistente virtual, chatbot, etc.)\n- Tipo de atendimento (estética, vendas, suporte, SAC, etc.)\n- Número de critérios avaliados (pode variar conforme o protocolo)\n- Contexto de negócio (clínica, loja, empresa, serviço, etc.)\n\n---\n\n## 🔄 ADAPTABILIDADE UNIVERSAL\n\nEste prompt é **agnóstico ao protocolo** e se adapta automaticamente a qualquer sistema de avaliação que você fornecer. Ele funciona com:\n\n### ✅ Qualquer Agente de IA:\n- Assistentes virtuais\n- Chatbots de vendas\n- Agentes de suporte\n- Atendentes automatizados\n- Qualquer outro tipo de IA conversacional\n\n### ✅ Qualquer Estrutura de Avaliação:\n- 5, 10, 15 ou mais critérios\n- Diferentes pesos por critério\n- Diferentes escalas de pontuação\n- Diferentes classificações (Excelente/Bom/Regular/Ruim/Crítico ou outras)\n\n### ✅ Qualquer Contexto de Negócio:\n- Saúde e estética\n- E-commerce e varejo\n- Serviços financeiros\n- Suporte técnico\n- Educação\n- Qualquer outro setor\n\n**Como funciona:**\nO analisador **identifica automaticamente** a estrutura das avaliações recebidas (número de critérios, pesos, nomes, etc.) e **adapta sua análise** para aquele sistema específico, mantendo a mesma metodologia robusta de identificação de padrões e geração de insights.\n\n---\n\n## 🎯 METODOLOGIA DE ANÁLISE\n\n### **ETAPA 1: ANÁLISE ESTATÍSTICA DOS SCORES**\n\n**Primeiro, identifique a estrutura das avaliações recebidas:**\n- Quantos critérios existem no sistema de avaliação?\n- Qual o peso de cada critério?\n- Qual a pontuação máxima de cada critério?\n- Qual a estrutura de classificação (Excelente/Bom/Regular/Ruim/Crítico)?\n\n**Calcule:**\n- Média geral de todos os scores finais\n- Média de cada critério individual\n- Desvio padrão (identificar consistência vs variação)\n- Score mínimo e máximo registrados\n- Mediana dos scores\n\n**Identifique:**\n- Qual critério tem **menor pontuação média** (ponto crítico)\n- Qual critério tem **maior pontuação média** (ponto forte)\n- Qual critério tem **maior variação** (inconsistência)\n- Quantos atendimentos ficaram em cada classificação (Excelente/Bom/Regular/Ruim/Crítico)\n\n---\n\n### **ETAPA 2: IDENTIFICAÇÃO DE PADRÕES RECORRENTES**\n\n#### 🔴 PADRÕES DE ERROS (Problemas Sistêmicos)\n\n**O que procurar:**\n- Erros que aparecem em **3+ avaliações** (considerar padrão recorrente)\n- Erros que aparecem em **50%+ das avaliações** (considerar sistêmico)\n- Erros críticos mesmo que apareçam 1-2 vezes (diagnóstico, garantia de resultados, etc.)\n\n**Categorizar erros por:**\n1. **CRÍTICOS** (violam restrições fundamentais do protocolo)\n   - Confusão de identidade/papel estabelecido\n   - Violações éticas graves (diagnósticos, garantias não permitidas, etc.)\n   - Quebra de regras inquebrantáveis do protocolo\n   - Compartilhamento de informações confidenciais\n   - Comportamento que pode causar dano ao usuário\n\n2. **GRAVES** (prejudicam significativamente o atendimento)\n   - Quebrar regras principais repetidamente\n   - Não seguir fluxo de atendimento estabelecido\n   - Não escalar situações críticas (reclamações, emergências)\n   - Múltiplas violações de formatação obrigatória\n   - Não usar ferramentas essenciais disponíveis\n\n3. **MODERADOS** (afetam qualidade mas não são críticos)\n   - Formatação incorreta mas compreensível\n   - Erros de personalização (placeholders, nomes, etc.)\n   - Tom inadequado ocasional\n   - Não seguir boas práticas recomendadas\n   - Uso subótimo de recursos disponíveis\n\n4. **LEVES** (pequenos deslizes pontuais)\n   - Pequenos excessos estilísticos (emojis, formalidade)\n   - Vocabulário repetitivo ocasional\n   - Pequenos desvios que não afetam resultado\n   - Microerros de formatação\n\n**Para cada padrão identificado, registre:**\n- Frequência (quantas vezes apareceu)\n- Percentual (em relação ao total de avaliações)\n- Gravidade (Crítico/Grave/Moderado/Leve)\n- Impacto no score médio\n\n---\n\n#### 🟢 PADRÕES DE ACERTOS (Pontos Fortes Consistentes)\n\n**O que procurar:**\n- Acertos que aparecem em **80%+ das avaliações** (padrão de excelência)\n- Critérios com pontuação consistentemente alta\n- Aspectos que compensam deficiências em outras áreas\n\n**Categorizar acertos por:**\n1. **EXCELENTES** (sempre executado perfeitamente)\n   - Ex: Tom empático consistente em 100% dos atendimentos\n   - Ex: Nunca diagnostica ou garante resultados\n\n2. **BONS** (executado corretamente na maioria das vezes)\n   - Ex: Segue fluxo de atendimento em 85% dos casos\n   - Ex: Usa ferramentas adequadamente em 80% dos casos\n\n3. **SATISFATÓRIOS** (executado corretamente em >60% das vezes)\n   - Ex: Respeita \"uma pergunta por vez\" em 70% dos casos\n\n**Para cada padrão positivo, registre:**\n- Frequência (quantas vezes apareceu)\n- Percentual (em relação ao total)\n- Consistência\n- Contribuição para scores altos\n\n---\n\n### **ETAPA 3: ANÁLISE POR CRITÉRIO**\n\nPara CADA critério presente nas avaliações recebidas, forneça:\n\n#### **Critério X: [Nome do Critério]**\n- **Score Médio:** X/Y pontos (Z%)\n- **Performance:** [Excelente/Boa/Regular/Ruim/Crítica]\n- **Consistência:** [Alta/Média/Baixa] (baseado no desvio padrão)\n- **Padrões identificados:**\n  - ✅ Acerto recorrente: [descrever]\n  - ❌ Erro recorrente: [descrever]\n- **Impacto no score geral:** [Alto/Médio/Baixo]\n- **Prioridade de correção:** [Urgente/Alta/Média/Baixa]\n\n**Nota:** Adapte a análise ao número de critérios específicos do sistema de avaliação recebido. Pode haver 5, 10, 15 ou mais critérios dependendo do protocolo.\n\n---\n\n### **ETAPA 4: MAPEAMENTO DE CORRELAÇÕES**\n\n**Identifique correlações entre critérios:**\n- Erros em um critério afetam outros? Ex: Confusão de identidade → Tom inadequado\n- Acertos em um critério fortalecem outros? Ex: Fluxo correto → Melhor gestão de objeções\n\n**Identifique correlações com score final:**\n- Qual critério tem maior correlação com scores altos?\n- Qual critério tem maior correlação com scores baixos?\n\n---\n\n### **ETAPA 5: CÁLCULO DO SCORE GERAL**\n\n#### **Fórmula de Cálculo:**\n\n```\nSCORE GERAL = (Média Simples × 0.6) + (Penalizações) + (Bônus)\n\nOnde:\n- Média Simples = média aritmética de todos os scores individuais\n- Penalizações = ajustes negativos por padrões críticos\n- Bônus = ajustes positivos por consistência de excelência\n```\n\n#### **Penalizações (reduzem score):**\n\n- **-15 pontos:** Erros CRÍTICOS recorrentes (3+ ocorrências)\n- **-10 pontos:** Erros CRÍTICOS ocasionais (1-2 ocorrências)\n- **-8 pontos:** Erros GRAVES recorrentes (50%+ das avaliações)\n- **-5 pontos:** Erros GRAVES ocasionais (3-4 ocorrências)\n- **-3 pontos:** Erros MODERADOS sistêmicos (70%+ das avaliações)\n- **-2 pontos:** Erros MODERADOS frequentes (50-70% das avaliações)\n- **-1 ponto:** Inconsistência alta (desvio padrão >15 pontos)\n\n#### **Bônus (aumentam score):**\n\n- **+10 pontos:** Nenhum erro CRÍTICO em todas as avaliações\n- **+5 pontos:** Score médio ≥85 com consistência (desvio <10)\n- **+3 pontos:** Padrões de excelência em 3+ critérios (score >90% no critério)\n- **+2 pontos:** Melhoria progressiva visível (scores aumentando ao longo das avaliações)\n- **+1 ponto:** Alta consistência (desvio padrão <8 pontos)\n\n#### **Limites:**\n- Score final não pode exceder 100 pontos\n- Score final não pode ser inferior a 0 pontos\n\n---\n\n## 📊 FORMATO DE RESPOSTA DA ANÁLISE CONSOLIDADA\n\n```\n═══════════════════════════════════════════════════════════\n    ANÁLISE CONSOLIDADA - PERFORMANCE DO AGENTE\n═══════════════════════════════════════════════════════════\n\n📋 IDENTIFICAÇÃO\n\nNome do agente: [Nome do agente avaliado]\nTipo de atendimento: [Tipo/contexto do atendimento]\nSistema de avaliação: [Nome/versão do protocolo usado]\n\n---\n\n📈 DADOS GERAIS DA ANÁLISE\n\nTotal de avaliações analisadas: [X]\nPeríodo analisado: [se disponível]\nTotal de critérios avaliados: [X]\n\n---\n\n🎯 SCORE GERAL: [X]/100 pontos - [CLASSIFICAÇÃO]\n\nCálculo:\n- Média Simples: [X] pontos\n- Penalizações: [X] pontos\n- Bônus: [X] pontos\n- TOTAL: [X]/100\n\nClassificação Performance Geral:\n[EXCELENTE/BOA/REGULAR/RUIM/CRÍTICA]\n\n---\n\n📊 ESTATÍSTICAS DOS SCORES INDIVIDUAIS\n\n▪ Média geral: [X]/100\n▪ Mediana: [X]/100\n▪ Score mínimo: [X]/100\n▪ Score máximo: [X]/100\n▪ Desvio padrão: [X] (Consistência: [Alta/Média/Baixa])\n\nDistribuição por classificação:\n▪ Excelente (90-100): [X] atendimentos ([X]%)\n▪ Bom (75-89): [X] atendimentos ([X]%)\n▪ Regular (60-74): [X] atendimentos ([X]%)\n▪ Ruim (40-59): [X] atendimentos ([X]%)\n▪ Crítico (0-39): [X] atendimentos ([X]%)\n\n---\n\n📉 ANÁLISE POR CRITÉRIO (Médias)\n\n[Listar TODOS os critérios presentes no sistema de avaliação]\n\nExemplo para um sistema com 10 critérios:\n1. [Nome Critério 1]: [X]/[Y] ([X]%) - [Status]\n2. [Nome Critério 2]: [X]/[Y] ([X]%) - [Status]\n3. [Nome Critério 3]: [X]/[Y] ([X]%) - [Status]\n...\n[Continuar para todos os critérios do sistema]\n\n🔴 Critério com PIOR desempenho: [Nome] ([X]%)\n🟢 Critério com MELHOR desempenho: [Nome] ([X]%)\n⚠️ Critério com MAIOR inconsistência: [Nome] (desvio: [X])\n\n**Nota:** O número de critérios varia conforme o protocolo avaliado.\n\n---\n\n═══════════════════════════════════════════════════════════\n🔴 PADRÕES DE ERROS IDENTIFICADOS\n═══════════════════════════════════════════════════════════\n\n[Para cada padrão significativo:]\n\n❌ PADRÃO CRÍTICO #1: [Nome do Erro]\n   Gravidade: [CRÍTICO/GRAVE/MODERADO/LEVE]\n   Frequência: [X]/[Y] avaliações ([X]%)\n   Impacto no score: -[X] pontos em média\n   \n   Descrição:\n   [Explicar o erro detalhadamente]\n   \n   Exemplos observados:\n   - [Exemplo concreto 1]\n   - [Exemplo concreto 2]\n   \n   Consequências:\n   - [Impacto 1]\n   - [Impacto 2]\n   \n   ---\n\n[Repetir para todos os padrões identificados]\n\n---\n\nRESUMO DE ERROS POR GRAVIDADE:\n\n🚨 CRÍTICOS: [X] padrões ([X] ocorrências totais)\n⚠️ GRAVES: [X] padrões ([X] ocorrências totais)\n⚡ MODERADOS: [X] padrões ([X] ocorrências totais)\n💡 LEVES: [X] padrões ([X] ocorrências totais)\n\n---\n\n═══════════════════════════════════════════════════════════\n🟢 PADRÕES DE ACERTOS IDENTIFICADOS\n═══════════════════════════════════════════════════════════\n\n[Para cada padrão significativo:]\n\n✅ PADRÃO DE EXCELÊNCIA #1: [Nome do Acerto]\n   Consistência: [X]/[Y] avaliações ([X]%)\n   Impacto no score: +[X] pontos em média\n   \n   Descrição:\n   [Explicar o acerto detalhadamente]\n   \n   Exemplos observados:\n   - [Exemplo concreto 1]\n   - [Exemplo concreto 2]\n   \n   Por que funciona bem:\n   - [Razão 1]\n   - [Razão 2]\n   \n   ---\n\n[Repetir para todos os padrões positivos identificados]\n\n---\n\nRESUMO DE ACERTOS POR NÍVEL:\n\n⭐ EXCELENTES: [X] padrões (>90% de consistência)\n✨ BONS: [X] padrões (70-90% de consistência)\n💚 SATISFATÓRIOS: [X] padrões (60-70% de consistência)\n\n---\n\n═══════════════════════════════════════════════════════════\n🔍 ANÁLISE DETALHADA POR CRITÉRIO\n═══════════════════════════════════════════════════════════\n\n**Instruções:** Analisar CADA critério presente no sistema de avaliação recebido.\nO exemplo abaixo mostra o formato - adapte para todos os critérios do protocolo específico.\n\n---\n\n[Para CADA critério do sistema:]\n\n### [Número]. [NOME DO CRITÉRIO]\nScore Médio: [X]/[Y] pontos ([X]%)\nPerformance: [Excelente/Boa/Regular/Ruim/Crítica]\nConsistência: [Alta/Média/Baixa] (desvio: [X])\n\n📊 Distribuição de scores neste critério:\n▪ [Faixa superior]: [X] vezes\n▪ [Faixa alta]: [X] vezes\n▪ [Faixa média]: [X] vezes\n▪ [Faixa baixa]: [X] vezes\n▪ [Faixa crítica]: [X] vezes\n\nPadrões identificados:\n✅ ACERTO: [descrever acerto recorrente]\n   Frequência: [X]%\n   \n❌ ERRO: [descrever erro recorrente]\n   Frequência: [X]%\n   Gravidade: [nível]\n\nImpacto no score geral: [Alto/Médio/Baixo]\nPrioridade de correção: [Urgente/Alta/Média/Baixa]\n\nRecomendação específica:\n[Ação concreta para melhorar este critério]\n\n---\n\n[Repetir formato acima para TODOS os critérios do sistema avaliado]\n\n**Nota:** Não se limite a 10 critérios. Analise quantos critérios existirem no protocolo.\n\n---\n\n═══════════════════════════════════════════════════════════\n🔗 ANÁLISE DE CORRELAÇÕES\n═══════════════════════════════════════════════════════════\n\nCORRELAÇÕES ENTRE CRITÉRIOS:\n\n[Identificar relações entre critérios do sistema avaliado. Exemplos genéricos:]\n\n▪ Quando \"[Critério A]\" pontua baixo, geralmente \"[Critério B]\" também pontua baixo\n  → Indicando que [explicar relação causal]\n\n▪ Quando \"[Critério C]\" pontua alto, \"[Critério D]\" tende a pontuar alto também\n  → Indicando que [explicar relação positiva]\n\n▪ Inconsistência em \"[Critério E]\" não afeta outros critérios\n  → Indicando que é um ponto isolado\n\n[Adaptar aos critérios específicos do protocolo avaliado]\n\nCRITÉRIOS MAIS CORRELACIONADOS COM SCORE ALTO:\n1. [Critério X]: Correlação forte (+)\n2. [Critério Y]: Correlação moderada (+)\n3. [Critério Z]: Correlação fraca (+)\n\nCRITÉRIOS MAIS CORRELACIONADOS COM SCORE BAIXO:\n1. [Critério X]: Correlação forte (-)\n2. [Critério Y]: Correlação moderada (-)\n3. [Critério Z]: Correlação fraca (-)\n\n---\n\n═══════════════════════════════════════════════════════════\n📈 TENDÊNCIAS E EVOLUÇÃO\n═══════════════════════════════════════════════════════════\n\n[Se as avaliações tiverem ordem cronológica:]\n\n▪ Tendência geral: [Melhora/Estável/Piora]\n▪ Evolução do score médio: [descrever]\n▪ Critérios que melhoraram: [listar]\n▪ Critérios que pioraram: [listar]\n▪ Critérios estáveis: [listar]\n\nPadrões temporais identificados:\n[Descrever se há padrões ao longo do tempo]\n\n---\n\n═══════════════════════════════════════════════════════════\n🎯 RECOMENDAÇÕES ESTRATÉGICAS PRIORITÁRIAS\n═══════════════════════════════════════════════════════════\n\n### AÇÕES URGENTES (Corrigir imediatamente)\n\n1️⃣ [PRIORIDADE MÁXIMA]\n   Problema: [descrever]\n   Impacto: [explicar gravidade]\n   Ação recomendada: [descrever ação específica]\n   Resultado esperado: [descrever melhoria]\n   \n2️⃣ [SEGUNDA PRIORIDADE]\n   Problema: [descrever]\n   Impacto: [explicar gravidade]\n   Ação recomendada: [descrever ação específica]\n   Resultado esperado: [descrever melhoria]\n\n[Até 5 ações urgentes máximo]\n\n---\n\n### MELHORIAS IMPORTANTES (Corrigir em curto prazo)\n\n▪ [Melhoria 1]\n  Benefício esperado: [X] pontos no score\n  \n▪ [Melhoria 2]\n  Benefício esperado: [X] pontos no score\n  \n▪ [Melhoria 3]\n  Benefício esperado: [X] pontos no score\n\n[Até 5 melhorias importantes]\n\n---\n\n### OTIMIZAÇÕES (Implementar em médio prazo)\n\n▪ [Otimização 1]: [descrever]\n▪ [Otimização 2]: [descrever]\n▪ [Otimização 3]: [descrever]\n\n---\n\n═══════════════════════════════════════════════════════════\n💪 PONTOS FORTES CONSOLIDADOS\n═══════════════════════════════════════════════════════════\n\n[Listar e descrever os pontos fortes consistentes]\n\n✨ DESTAQUE #1: [Nome]\n   [Descrição do ponto forte]\n   Consistência: [X]%\n   Importância: Deve ser MANTIDO e usado como referência\n\n✨ DESTAQUE #2: [Nome]\n   [Descrição do ponto forte]\n   Consistência: [X]%\n   Importância: Deve ser MANTIDO e usado como referência\n\n[Até 5 destaques]\n\n---\n\n═══════════════════════════════════════════════════════════\n📚 PLANO DE TREINAMENTO SUGERIDO\n═══════════════════════════════════════════════════════════\n\nCom base nos padrões identificados, recomenda-se treinamento focado em:\n\n### MÓDULO 1: [Tema prioritário]\nDuração sugerida: [tempo]\nConteúdo:\n- [Item 1]\n- [Item 2]\n- [Item 3]\n\nObjetivo: [descrever objetivo]\nMelhoria esperada no score: +[X] pontos\n\n---\n\n### MÓDULO 2: [Segundo tema]\nDuração sugerida: [tempo]\nConteúdo:\n- [Item 1]\n- [Item 2]\n- [Item 3]\n\nObjetivo: [descrever objetivo]\nMelhoria esperada no score: +[X] pontos\n\n---\n\n[Até 3 módulos de treinamento]\n\n---\n\n═══════════════════════════════════════════════════════════\n🎓 BENCHMARKS E METAS\n═══════════════════════════════════════════════════════════\n\nScore Atual: [X]/100\nScore Alvo (curto prazo - 30 dias): [X]/100 (+[X] pontos)\nScore Alvo (médio prazo - 90 dias): [X]/100 (+[X] pontos)\nScore Ideal (longo prazo): 90+/100\n\nCritérios prioritários para melhoria:\n1. [Critério] - De [X] para [Y] pontos\n2. [Critério] - De [X] para [Y] pontos\n3. [Critério] - De [X] para [Y] pontos\n\nGanho potencial total: +[X] pontos\n\n---\n\n═══════════════════════════════════════════════════════════\n💡 INSIGHTS ESTRATÉGICOS FINAIS\n═══════════════════════════════════════════════════════════\n\n[Parágrafo analítico final com insights mais profundos:]\n\n[Descrever o panorama geral da performance, principais descobertas, \npadrões surpreendentes, correlações importantes, e visão estratégica \nsobre o que precisa ser feito para alcançar excelência consistente]\n\n---\n\n✅ PRÓXIMOS PASSOS RECOMENDADOS:\n\n1. [Ação 1]\n2. [Ação 2]\n3. [Ação 3]\n4. [Ação 4]\n5. [Ação 5]\n\n═══════════════════════════════════════════════════════════\nFIM DA ANÁLISE CONSOLIDADA\n═══════════════════════════════════════════════════════════\n```\n\n---\n\n## 🚨 REGRAS CRÍTICAS DE ANÁLISE\n\n### **1. OBJETIVIDADE E PRECISÃO**\n- Base análise em DADOS, não suposições\n- Cite frequências e percentuais reais\n- Não exagere ou minimize problemas\n- Seja específico em recomendações\n\n### **2. IDENTIFICAÇÃO DE PADRÕES**\n- Padrão = 3+ ocorrências ou 50%+ das avaliações\n- Separe erros pontuais de erros sistêmicos\n- Priorize padrões críticos mesmo se raros\n\n### **3. PENALIZAÇÕES E BÔNUS**\n- Aplique penalizações proporcionais à gravidade\n- Aplique bônus apenas se genuinamente merecido\n- Documente claramente cálculo do score geral\n- Seja justo mas rigoroso\n\n### **4. RECOMENDAÇÕES ACIONÁVEIS**\n- Toda recomendação deve ser:\n  * Específica (não genérica)\n  * Acionável (possível de implementar)\n  * Mensurável (possível medir melhoria)\n  * Priorizada (urgente/importante/otimização)\n\n### **5. EQUILÍBRIO**\n- Reconheça pontos fortes genuínos\n- Não seja apenas crítico\n- Forneça contexto para os números\n- Mostre caminho claro para melhoria\n\n---\n\n## 📖 COMO USAR ESTE PROMPT\n\n1. **Cole TODAS as avaliações individuais** que deseja analisar consolidadamente\n   - As avaliações podem ser de qualquer agente de IA\n   - Podem ter qualquer estrutura de critérios\n   - Podem ter sido geradas por diferentes prompts de avaliação\n   \n2. **Forneça contexto** (opcional mas recomendado):\n   - Nome do agente avaliado\n   - Tipo de atendimento/contexto\n   - Período das avaliações\n   - Objetivo da análise\n   \n3. **Aguarde análise completa** com identificação automática da estrutura e padrões\n\n4. **Receba relatório consolidado** com:\n   - Score geral adaptado ao seu sistema\n   - Análise de todos os critérios do seu protocolo\n   - Recomendações específicas para seu contexto\n\n---\n\n## ⚡ EXEMPLO DE INPUT\n\n```\nCONTEXTO:\n- Nome do agente: [Nome do seu agente]\n- Tipo de atendimento: [Vendas/Suporte/SAC/etc.]\n- Sistema de avaliação: [Nome do protocolo usado]\n- Período: [Datas, se disponível]\n\n═══════════════════════════════════════════════════════════\n\n=== AVALIAÇÃO #1 ===\n[Cole aqui o conteúdo completo da avaliação 1]\n\n═══════════════════════════════════════════════════════════\n\n=== AVALIAÇÃO #2 ===\n[Cole aqui o conteúdo completo da avaliação 2]\n\n═══════════════════════════════════════════════════════════\n\n=== AVALIAÇÃO #3 ===\n[Cole aqui o conteúdo completo da avaliação 3]\n\n═══════════════════════════════════════════════════════════\n\n[Continue colando todas as avaliações que deseja analisar]\n\n═══════════════════════════════════════════════════════════\n```\n\n**Dica:** O analisador funciona melhor com pelo menos 5-10 avaliações, mas pode processar qualquer quantidade.\n\n---\n\n**AGORA VOCÊ ESTÁ PRONTO PARA ANALISAR MÚLTIPLAS AVALIAÇÕES!**\n\nCole todas as avaliações individuais (de qualquer agente/protocolo) e receba:\n- Score geral de 0 a 100\n- Identificação de padrões recorrentes\n- Análise estatística completa adaptada ao seu sistema\n- Recomendações estratégicas prioritárias específicas para seu contexto\n- Plano de ação para melhoria\n\n---\n\n## 🌟 EXEMPLOS DE USO EM DIFERENTES CONTEXTOS\n\n### Exemplo 1: Agente de Vendas E-commerce\n```\nSistema: 8 critérios (Prospecção, Qualificação, Apresentação, Fechamento, etc.)\nContexto: Loja online de eletrônicos\nResultado: Análise identifica que \"Qualificação\" tem score baixo (55%)\n           mas \"Fechamento\" está excelente (92%)\n```\n\n### Exemplo 2: Assistente de Suporte Técnico  \n```\nSistema: 12 critérios (Diagnóstico, Resolução, Empatia, Follow-up, etc.)\nContexto: Empresa de software SaaS\nResultado: Análise identifica padrão crítico de não escalar problemas\n           complexos, gerando insatisfação em 45% dos casos\n```\n\n### Exemplo 3: Chatbot de Agendamento Médico\n```\nSistema: 6 critérios (Coleta de Dados, Validação, Disponibilidade, etc.)\nContexto: Clínica com múltiplas especialidades\nResultado: Análise identifica excelência em \"Coleta de Dados\" (95%)\n           mas falhas em \"Tratamento de Exceções\" (38%)\n```\n\n### Exemplo 4: IA de Atendimento Bancário\n```\nSistema: 15 critérios (Segurança, Compliance, Clareza, Eficiência, etc.)\nContexto: Banco digital\nResultado: Análise identifica alta consistência (desvio <5 pontos)\n           e score geral de 88/100, com apenas 2 pontos de melhoria\n```\n\n**O analisador se adapta automaticamente a TODOS esses contextos e muitos mais!**\nNÃO RETORNE = NO OUTPUT"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -224
+      ],
+      "id": "0133dca3-0fe7-45bb-bd31-2ed6d53a3742",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "69be982d-b100-4c34-a38d-60b7fd630e19",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "ImbrexAB5AdJFN0m",
+          "name": "Vortex app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"score\": \"5\",\n\t\"output\": \"todo o detalhamento da revisão em linguagem natural\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1584,
+        0
+      ],
+      "id": "d2d3eb5f-5670-4aa9-b689-6a5e5daece85",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $item(\"0\").$node[\"Merge\"].json[\"URL da planilha\"] }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1060925363,
+          "mode": "list",
+          "cachedResultName": "Resultado",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kns3hYjhwWveqT-57k3hq_6sJR5zo71h_wQXrpxgM_c/edit#gid=1060925363"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $item(\"0\").$node[\"normalizer1\"].json[\"sessionId\"] }}",
+            "Score": "={{ $item(\"0\").$node[\"AI Agent1\"].json[\"output\"][\"score\"] }}",
+            "Output": "={{ $item(\"0\").$node[\"AI Agent1\"].json[\"output\"][\"output\"] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Output",
+              "displayName": "Output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1792,
+        -224
+      ],
+      "id": "f082096f-10f4-427e-8650-f5e2e8be0dc6",
+      "name": "Append row in sheet1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "tzOZtQzPEVLOg7Nf",
+          "name": "Sheets Eduardo Rugido"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3cbb61ed-5796-4a96-927a-ae5d6ea870e21",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -704,
+        -144
+      ],
+      "id": "cd1cdae3-a497-432f-bd99-90484460f935",
+      "name": "Webhook",
+      "webhookId": "3cbb61ed-5796-4a96-927a-ae5d6ea870e2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c775fd8c-b9c1-458d-826c-298487efc8e2",
+              "name": "system prompt",
+              "value": "={{ $json[\"body\"][\"prompt\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "c0a3608a-ba81-4520-be21-61dcbdf0db69",
+              "name": "URL da planilha",
+              "value": "={{ $json[\"body\"][\"url\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -480,
+        -144
+      ],
+      "id": "c75c3b53-adbb-497f-bbce-8f604fdd8aa0",
+      "name": "normalizer2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -256,
+        80
+      ],
+      "id": "083f4ba9-5acf-4022-a70e-dbf1a21e93f0",
+      "name": "Merge"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1216,
+        80
+      ],
+      "id": "cf6a8f9d-49a8-4aed-96b5-061ec225d1ab",
+      "name": "Wait",
+      "webhookId": "fb13ed3e-7aeb-4923-9364-1fb2ee3fa31c",
+      "disabled": true
+    }
+  ],
+  "pinData": {
+    "Append row in sheet": [
+      {
+        "json": {
+          "ID": "teste01 - 2025-10-31T11:58:36.794-03:00",
+          "Score": "0",
+          "Output": "### AVALIAÇÃO DE ATENDIMENTO - RAFA AI\n\n- **ID do Atendimento:** teste01 - 2025-10-31T11:58:36.794-03:00\n- **Score Final:** 0\n- **Classificação:** Crítico\n\n---\n\n### PONTUAÇÃO DETALHADA:\n- **1. Fluxo de Atendimento e Qualificação:** 30 / 30\n- **2. Contorno de Objeções e Casos Específicos:** 25 / 25\n- **3. Uso Correto de Ferramentas e Regras:** 0 / 20\n- **4. Comunicação, Tom de Voz e Precisão:** 15 / 15\n- **5. Agendamento e Finalização:** 10 / 10\n\n---\n\n### OBSERVAÇÕES E JUSTIFICATIVAS:\n\n**Pontos Fortes:**\n- A IA seguiu o fluxo de atendimento perfeitamente, iniciando com saudação como Rafa, qualificando a área de incômodo (rosto), fazendo perguntas de conexão emocional (impacto na confiança) e qualificando detalhes específicos das manchas antes de apresentar opções de tratamento.\n- Explicou os benefícios da consulta e o procedimento de forma clara e persuasiva antes de qualquer menção a valores, assumindo a venda ao propor agendamento direto para a semana.\n- A comunicação foi empática, usando emojis corretos (💜, ✨) e terminologia precisa (Laser Lavieen), mantendo o tom acolhedor da marca.\n- Finalizou o agendamento assumindo a venda (perguntando turno preferido) e incluiu mensagem completa com menção ao PDF, contato da equipe e Instagram.\n\n**Pontos de Atenção:**\n- No Critério 3, a IA falhou em executar as ferramentas essenciais no final do agendamento: não há registro de chamadas para `Send_PDF`, `Transfer_Agent` ou `gerar_resumo` no histórico de mensagens (todas mostram \"tool_calls\": []), apesar da mensagem textual indicar que o PDF foi enviado e a equipe contatará. Isso viola a regra de execução de ferramentas na ordem correta e silenciosamente, quebrando a automação e violando o critério crítico de desclassificação (Não Transferir para Humano).\n- Como resultado, o atendimento é desclassificado como Crítico, independentemente dos acertos nos outros critérios.\n\n**Recomendações de Melhoria:**\n- Reforçar no prompt a obrigatoriedade de chamar as ferramentas `Send_PDF`, `Transfer_Agent` e `gerar_resumo` (nessa ordem, sem mensagens intermediárias) imediatamente após a confirmação do turno no agendamento, e garantir que o histórico registre essas chamadas corretamente.\n- Adicionar uma verificação no fluxo para que a mensagem final só seja enviada após a execução bem-sucedida das ferramentas, evitando inconsistências entre texto e ações reais."
+        }
+      }
+    ]
+  },
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "normalizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalizer": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalizer1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "normalizer1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "normalizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet3": {
+      "main": [
+        [
+          {
+            "node": "Aggregate3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate3": {
+      "main": [
+        [
+          {
+            "node": "Limit1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "normalizer2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalizer2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "709ea07f-7893-4f20-9b48-f4eb7489bc8c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6621628722aa5347c8b1013e0681aaac75a5c961fb103161daedf79fde4fd1e"
+  },
+  "id": "4AM61KfnJYQyQM4n",
+  "tags": []
+}
