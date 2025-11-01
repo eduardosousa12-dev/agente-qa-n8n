@@ -6,8 +6,8 @@ Esta ferramenta atua como um "Meta-Agente", um sistema de IAs que testa, avalia 
 
 ### 🎬 Demonstração Rápida
 
-**(COLOQUE AQUI O LINK DO SEU VÍDEO NO LOOM/YOUTUBE)**
-*O vídeo deve mostrar o fluxo completo, desde o formulário de "Criar Testes" até o "Relatório Final" na planilha.*
+**Parte 1: Geração dos Testes e Execução da Simulação: https://www.loom.com/share/9ebde053df9e48d79ae143305faf2299**
+**Parte 2: Análise, Relatório e Score Final: https://www.loom.com/share/96794539c87b4d9491396bd65eef76c0**
 
 ---
 
@@ -119,3 +119,7 @@ O nó `agente_principal` dentro do Estágio 2 é a ferramenta que faz essa chama
 * `Agente Criador de Testes.json`: Workflow do Estágio 1 (Geração de Testes).
 * `Agente Testador de LLMs.json`: Workflow do Estágio 2 (Execução do Teste).
 * `Agente Revisador do teste.json`: Workflow do Estágio 3 (Análise e Relatório).
+
+# Contato
+Whatsapp: 5534998557386
+Instagram: eduardosousa.12
